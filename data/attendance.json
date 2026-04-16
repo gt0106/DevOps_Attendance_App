@@ -1,0 +1,26 @@
+[
+  {
+    "id": "f9ab49b2-c6ba-4bc4-9ceb-73991c868642",
+    "username": "admin",
+    "status": "present",
+    "date": "2026-04-13",
+    "dateTime": "2026-04-13T03:30:00.000Z",
+    "updatedAt": "2026-04-13T03:30:00.000Z"
+  },
+  {
+    "id": "0a8256f8-cc3a-443b-97ad-a15da041687b",
+    "username": "admin",
+    "status": "absent",
+    "date": "2026-04-14",
+    "dateTime": "2026-04-14T03:45:00.000Z",
+    "updatedAt": "2026-04-14T03:45:00.000Z"
+  },
+  {
+    "id": "604cf523-ec33-4bd1-b4be-d45407742ad4",
+    "username": "admin",
+    "status": "present",
+    "date": "2026-04-15",
+    "dateTime": "2026-04-15T04:00:00.000Z",
+    "updatedAt": "2026-04-15T04:00:00.000Z"
+  }
+]

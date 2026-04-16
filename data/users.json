@@ -1,0 +1,14 @@
+[
+  {
+    "username": "admin",
+    "password": "admin123",
+    "name": "DevOps Admin",
+    "role": "Platform Engineer"
+  },
+  {
+    "username": "engineer",
+    "password": "devops123",
+    "name": "Site Reliability Engineer",
+    "role": "SRE"
+  }
+]

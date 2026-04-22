@@ -1,6 +1,6 @@
-# Student Dashboard App
+# DevOps Attendance Tracker
 
-A deployable student dashboard built with an Express backend and a lightweight React-powered frontend served from `public/`. It includes attendance intelligence, marks prediction, assignment tracking, calendar planning, notifications, goals, gamification, dark mode, and an academic assistant.
+A deployable DevOps attendance tracker built with an Express backend and a lightweight React-powered frontend served from `public/`. It includes attendance intelligence, assessment prediction, task tracking, schedule planning, notifications, goals, gamification, dark mode, and a DevOps helper assistant.
 
 The app now supports two storage modes:
 
@@ -11,17 +11,17 @@ The app now supports two storage modes:
 
 - Attendance progress with percentage and attended days
 - Attendance risk prediction around the `75%` threshold
-- Marks prediction from current academic performance
+- DevOps assessment prediction from current performance
 - Weekly and monthly analytics charts
-- Assignment board with status, feedback, late indicator, and upload action
-- Goal setting for attendance and target marks
+- Task board with status, feedback, late indicator, and upload action
+- Goal setting for attendance and target assessment score
 - Notification bell for deadlines, low attendance, and performance drops
-- Calendar view for classes, deadlines, and exams
-- Subject-wise analytics with strengths and weak areas
+- Calendar view for sessions, deadlines, and evaluations
+- Module-wise analytics with strengths and focus areas
 - Feedback and suggestion box
 - Gamification badges and streak tracking
 - Dark mode and responsive layout
-- AI helper endpoint for common academic questions
+- AI helper endpoint for common DevOps progress questions
 - Docker-ready deployment setup
 - Health check endpoint for platforms like Render, Railway, Fly.io, and Docker health probes
 - Optional MongoDB Atlas integration with automatic seeding from local JSON data
@@ -96,19 +96,19 @@ Expected response includes:
 Build the image:
 
 ```bash
-docker build -t student-dashboard-app .
+docker build -t devops-attendance-tracker .
 ```
 
 Run the container:
 
 ```bash
-docker run -p 5001:5001 -v $(pwd)/data:/app/data student-dashboard-app
+docker run -p 5001:5001 -v $(pwd)/data:/app/data devops-attendance-tracker
 ```
 
 On Windows PowerShell:
 
 ```powershell
-docker run -p 5001:5001 -v ${PWD}\\data:/app/data student-dashboard-app
+docker run -p 5001:5001 -v ${PWD}\\data:/app/data devops-attendance-tracker
 ```
 
 ## Deploy On Render / Railway / Similar Platforms

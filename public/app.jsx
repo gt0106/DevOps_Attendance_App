@@ -1,4 +1,4 @@
-const { useEffect, useMemo, useRef, useState } = React;
+ï»¿const { useEffect, useMemo, useRef, useState } = React;
 
 const STORAGE_KEYS = {
   session: "student-dashboard-session",
@@ -95,14 +95,6 @@ function saveTheme(theme) {
   localStorage.setItem(STORAGE_KEYS.theme, theme);
 }
 
-function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  });
-}
-
 function formatDateTime(dateString) {
   return new Date(dateString).toLocaleString("en-IN", {
     day: "numeric",
@@ -163,10 +155,10 @@ function LoginScreen({ onLogin, loading, error }) {
   return (
     <div className="login-page">
       <div className="login-card glass">
-        <span className="brand-tag">Student Success Hub</span>
-        <h1 className="login-title">A smarter dashboard for attendance, marks, and momentum.</h1>
+        <span className="brand-tag">DevOps Attendance Tracker</span>
+        <h1 className="login-title">A smarter dashboard for attendance, assessments, and delivery momentum.</h1>
         <p className="login-copy">
-          Sign in to view predictions, deadlines, goals, analytics, and AI-guided study support.
+          Sign in to view attendance predictions, task deadlines, performance analytics, and DevOps progress guidance.
         </p>
 
         <div className="form-grid">
@@ -184,7 +176,7 @@ function LoginScreen({ onLogin, loading, error }) {
             />
           </label>
           <button className="btn btn-primary" onClick={() => onLogin({ username, password })} disabled={loading}>
-            {loading ? "Signing in..." : "Open Dashboard"}
+            {loading ? "Signing in..." : "Open Tracker"}
           </button>
           {error ? <div className="inline-alert error">{error}</div> : null}
           <p className="subtle">Demo credentials are prefilled so you can explore quickly.</p>
@@ -261,16 +253,16 @@ function InsightPanel({ predictions, attendance, marks }) {
           <span>{predictions.attendanceMessage}</span>
         </div>
         <div className="insight-pill neutral">
-          <strong>Marks forecast</strong>
+          <strong>Assessment forecast</strong>
           <span>{predictions.marksMessage}</span>
         </div>
         <div className="metrics-grid two-up">
           <div className="metric-tile">
             <span className="metric-label">Safe to skip</span>
-            <strong>{attendance.safeToMiss} classes</strong>
+            <strong>{attendance.safeToMiss} sessions</strong>
           </div>
           <div className="metric-tile">
-            <span className="metric-label">Predicted final</span>
+            <span className="metric-label">Predicted score</span>
             <strong>{marks.overallPredicted}%</strong>
           </div>
         </div>
@@ -309,7 +301,7 @@ function GoalCard({ goals, overview, onSave }) {
           />
         </label>
         <label className="field-label">
-          Marks goal
+          Assessment goal
           <input
             className="field-input"
             type="number"
@@ -322,7 +314,7 @@ function GoalCard({ goals, overview, onSave }) {
       </div>
       <div className="goal-stack">
         <ProgressBar label="Attendance" current={overview.attendancePercentage} target={goals.attendanceTarget} />
-        <ProgressBar label="Predicted marks" current={overview.predictedMarks} target={goals.marksTarget} />
+        <ProgressBar label="Predicted assessment" current={overview.predictedMarks} target={goals.marksTarget} />
       </div>
       <button
         className="btn btn-primary"
@@ -372,7 +364,7 @@ function TrendCharts({ trends }) {
     labels: trends.monthlyMarks.map((item) => item.label),
     datasets: [
       {
-        label: "Marks",
+        label: "Assessment",
         data: trends.monthlyMarks.map((item) => item.marks),
         backgroundColor: ["#2563eb", "#14b8a6", "#f59e0b", "#ef4444"]
       }
@@ -387,14 +379,14 @@ function TrendCharts({ trends }) {
       <div className="chart-card glass">
         <div className="section-header compact">
           <h2 className="section-title">Weekly attendance trend</h2>
-          <span className="subtle">Rolling classroom consistency</span>
+          <span className="subtle">Rolling session consistency</span>
         </div>
         <div className="chart-box"><canvas ref={attendanceRef} /></div>
       </div>
       <div className="chart-card glass">
         <div className="section-header compact">
-          <h2 className="section-title">Monthly marks trend</h2>
-          <span className="subtle">Score movement over time</span>
+          <h2 className="section-title">Monthly assessment trend</h2>
+          <span className="subtle">Performance movement over time</span>
         </div>
         <div className="chart-box"><canvas ref={marksRef} /></div>
       </div>
@@ -408,7 +400,7 @@ function SubjectAnalytics({ subjects, analytics }) {
       <div className="section-header compact">
         <div>
           <span className="mini-chip">Performance Analytics</span>
-          <h2 className="section-title">Subject-wise breakdown</h2>
+          <h2 className="section-title">Module-wise breakdown</h2>
         </div>
       </div>
       <div className="subject-grid">
@@ -419,15 +411,15 @@ function SubjectAnalytics({ subjects, analytics }) {
               <div className="subject-head">
                 <div>
                   <strong>{subject.name}</strong>
-                  <div className="subtle">{subject.faculty}</div>
+                  <div className="subtle">Mentor: {subject.faculty}</div>
                 </div>
                 <span className={`status-pill ${attendancePct < 75 ? "danger" : "good"}`}>{attendancePct}%</span>
               </div>
               <div className="subject-metrics">
                 <span>Mid: {subject.marks.mid}%</span>
-                <span>Internal: {subject.marks.internal}%</span>
-                <span>Assignments: {subject.marks.assignmentAverage}%</span>
-                <span>Class avg: {subject.marks.classAverage}%</span>
+                <span>Lab: {subject.marks.internal}%</span>
+                <span>Tasks: {subject.marks.assignmentAverage}%</span>
+                <span>Batch avg: {subject.marks.classAverage}%</span>
               </div>
               <p className="subtle">{subject.feedback}</p>
             </div>
@@ -440,7 +432,7 @@ function SubjectAnalytics({ subjects, analytics }) {
           {analytics.subjectInsights.strengths.map((item) => <p key={item.subjectId} className="subtle">{item.name}: {item.reason}</p>)}
         </div>
         <div>
-          <strong>Weak areas</strong>
+          <strong>Focus areas</strong>
           {analytics.subjectInsights.weaknesses.map((item) => <p key={item.subjectId} className="subtle">{item.name}: {item.reason}</p>)}
         </div>
       </div>
@@ -458,7 +450,7 @@ function AssignmentBoard({ assignments, subjects, onUpload }) {
     <div className="section-card glass">
       <div className="section-header compact">
         <div>
-          <span className="mini-chip">Assignments</span>
+          <span className="mini-chip">Tasks</span>
           <h2 className="section-title">Submission tracker</h2>
         </div>
       </div>
@@ -479,7 +471,7 @@ function AssignmentBoard({ assignments, subjects, onUpload }) {
               <span>{assignment.late ? "Late submission" : "On time"}</span>
               <span>{assignment.fileName || "No file uploaded yet"}</span>
             </div>
-            <p className="subtle">Instructor: {assignment.instructorComment}</p>
+            <p className="subtle">Reviewer: {assignment.instructorComment}</p>
             <p className="subtle">Feedback: {assignment.feedback}</p>
             {assignment.status === "pending" ? (
               <button
@@ -506,7 +498,7 @@ function CalendarPanel({ events }) {
     <div className="section-card glass">
       <div className="calendar-toolbar">
         <div>
-          <span className="mini-chip">Calendar</span>
+          <span className="mini-chip">Schedule</span>
           <h2 className="section-title">{monthTitle}</h2>
         </div>
         <div className="subtle">Google Calendar sync: design ready</div>
@@ -544,7 +536,7 @@ function FeedbackCard({ suggestions, onSubmit }) {
       <textarea
         className="field-input textarea"
         rows="4"
-        placeholder="Share a suggestion for faculty or the dashboard..."
+        placeholder="Share a suggestion for the bootcamp or tracker..."
         value={message}
         onChange={(event) => setMessage(event.target.value)}
       />
@@ -598,14 +590,14 @@ function GamificationCard({ analytics }) {
 }
 
 function AssistantCard({ onAsk, answerState }) {
-  const [question, setQuestion] = useState("Can I skip classes and still maintain 75%?");
+  const [question, setQuestion] = useState("Can I skip sessions and still maintain 75%?");
 
   return (
     <div className="section-card glass">
       <div className="section-header compact">
         <div>
           <span className="mini-chip">AI Assistant</span>
-          <h2 className="section-title">Study helper</h2>
+          <h2 className="section-title">DevOps helper</h2>
         </div>
       </div>
       <div className="assistant-panel">
@@ -613,7 +605,7 @@ function AssistantCard({ onAsk, answerState }) {
         <button className="btn btn-primary" onClick={() => onAsk(question)}>Ask</button>
         <div className="assistant-answer">
           <strong>Answer</strong>
-          <p>{answerState.answer || "Ask about attendance, marks, or assignment priorities."}</p>
+          <p>{answerState.answer || "Ask about attendance, assessments, or task priorities."}</p>
         </div>
         <div className="prompt-row">
           {answerState.suggestedPrompts?.map((prompt) => (
@@ -627,7 +619,7 @@ function AssistantCard({ onAsk, answerState }) {
   );
 }
 
-function Dashboard({ session, dashboard, theme, setTheme, onLogout, onGoalSave, onFeedbackSubmit, onAssignmentUpload, onAskAssistant, assistantState }) {
+function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onFeedbackSubmit, onAssignmentUpload, onAskAssistant, assistantState }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   return (
@@ -635,12 +627,12 @@ function Dashboard({ session, dashboard, theme, setTheme, onLogout, onGoalSave, 
       <div className="topbar glass">
         <div className="brand-block">
           <div className="brand-line">
-            <span className="brand-tag">Student Dashboard</span>
-            <span className="version-chip">Responsive • Predictive • Minimal</span>
+            <span className="brand-tag">DevOps Attendance Tracker</span>
+            <span className="version-chip">Responsive | Predictive | Minimal</span>
           </div>
           <h1 className="page-title">Welcome back, {dashboard.profile.name.split(" ")[0]}</h1>
           <p className="subtle">
-            {dashboard.profile.program} • Semester {dashboard.profile.semester} • Advisor {dashboard.profile.advisor}
+            {dashboard.profile.track} | {dashboard.profile.cohort} | Mentor {dashboard.profile.mentor}
           </p>
         </div>
         <div className="toolbar-actions">
@@ -655,12 +647,12 @@ function Dashboard({ session, dashboard, theme, setTheme, onLogout, onGoalSave, 
       <div className="hero glass">
         <div className="hero-copy">
           <span className="mini-chip">Today at a glance</span>
-          <h2 className="section-title">Stay ahead with alerts, predictions, goals, and study guidance.</h2>
+          <h2 className="section-title">Stay ahead with alerts, predictions, goals, and delivery guidance.</h2>
           <p className="subtle">
-            This dashboard combines attendance health, assignment progress, marks forecasts, calendar planning, and instructor signals in one clean workspace.
+            This tracker combines attendance health, DevOps task progress, assessment forecasts, schedule planning, and mentor signals in one clean workspace.
           </p>
           <div className="quick-actions">
-            <button className="btn btn-primary">View class plan</button>
+            <button className="btn btn-primary">View training plan</button>
             <button className="btn btn-secondary">Sync calendar design</button>
           </div>
         </div>
@@ -668,9 +660,9 @@ function Dashboard({ session, dashboard, theme, setTheme, onLogout, onGoalSave, 
       </div>
 
       <div className="summary-grid">
-        <StatCard label="Attendance progress" value={`${dashboard.overview.attendancePercentage}%`} detail={`${dashboard.overview.attendedDays} of ${dashboard.overview.totalDays} classes attended`} />
-        <StatCard label="Assignment submissions" value={`${dashboard.overview.assignmentsSubmitted}/${dashboard.overview.assignmentsSubmitted + dashboard.overview.pendingAssignments}`} detail={`${dashboard.overview.pendingAssignments} pending right now`} tone="accent" />
-        <StatCard label="Predicted semester marks" value={`${dashboard.overview.predictedMarks}%`} detail="Based on current scores and trend signals" tone="success" />
+        <StatCard label="Attendance progress" value={`${dashboard.overview.attendancePercentage}%`} detail={`${dashboard.overview.attendedDays} of ${dashboard.overview.totalDays} DevOps sessions attended`} />
+        <StatCard label="Task submissions" value={`${dashboard.overview.assignmentsSubmitted}/${dashboard.overview.assignmentsSubmitted + dashboard.overview.pendingAssignments}`} detail={`${dashboard.overview.pendingAssignments} pending right now`} tone="accent" />
+        <StatCard label="Predicted assessment score" value={`${dashboard.overview.predictedMarks}%`} detail="Based on current scores and trend signals" tone="success" />
       </div>
 
       <div className="page-grid">
@@ -787,8 +779,8 @@ function App() {
     return (
       <div className="login-page">
         <div className="login-card glass">
-          <h1 className="login-title">Loading dashboard...</h1>
-          <p className="subtle">We are preparing your analytics, notifications, and calendar.</p>
+          <h1 className="login-title">Loading tracker...</h1>
+          <p className="subtle">We are preparing your analytics, notifications, and schedule.</p>
         </div>
       </div>
     );
@@ -796,7 +788,6 @@ function App() {
 
   return (
     <Dashboard
-      session={session}
       dashboard={dashboard}
       theme={theme}
       setTheme={setTheme}

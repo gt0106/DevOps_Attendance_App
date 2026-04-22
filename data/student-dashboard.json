@@ -3,10 +3,10 @@
     "username": "admin",
     "profile": {
       "name": "Aarav Sharma",
-      "program": "B.Tech CSE",
-      "semester": 6,
-      "section": "A",
-      "advisor": "Dr. Meera Iyer"
+      "track": "DevOps Engineering Bootcamp",
+      "cohort": "Spring 2026",
+      "team": "Batch A",
+      "mentor": "Meera Iyer"
     },
     "goals": {
       "attendanceTarget": 85,
@@ -14,98 +14,98 @@
     },
     "subjects": [
       {
-        "id": "cs301",
-        "name": "Data Structures",
-        "faculty": "Prof. R. Nair",
-        "attendance": { "attended": 32, "total": 38 },
+        "id": "linux",
+        "name": "Linux & Shell",
+        "faculty": "R. Nair",
+        "attendance": { "attended": 12, "total": 14 },
         "marks": { "mid": 82, "end": 0, "internal": 84, "assignmentAverage": 87, "classAverage": 76 },
         "weeklyTrend": [72, 74, 75, 77, 79, 80],
         "monthlyTrend": [68, 72, 78, 81],
-        "feedback": "Great problem solving, focus on time complexity explanations."
+        "feedback": "Solid command-line confidence. Keep practicing shell scripting speed."
       },
       {
-        "id": "cs302",
-        "name": "Database Systems",
-        "faculty": "Prof. S. Kapoor",
-        "attendance": { "attended": 26, "total": 37 },
+        "id": "docker",
+        "name": "Docker & Containers",
+        "faculty": "S. Kapoor",
+        "attendance": { "attended": 10, "total": 14 },
         "marks": { "mid": 74, "end": 0, "internal": 71, "assignmentAverage": 76, "classAverage": 73 },
         "weeklyTrend": [70, 71, 70, 69, 71, 72],
         "monthlyTrend": [72, 73, 71, 74],
-        "feedback": "Query design is improving, revise normalization and indexing."
+        "feedback": "Container basics are improving. Focus on image optimization and compose workflows."
       },
       {
-        "id": "cs303",
-        "name": "Operating Systems",
-        "faculty": "Prof. N. Thomas",
-        "attendance": { "attended": 22, "total": 33 },
+        "id": "ci-cd",
+        "name": "CI/CD Pipelines",
+        "faculty": "N. Thomas",
+        "attendance": { "attended": 9, "total": 13 },
         "marks": { "mid": 63, "end": 0, "internal": 67, "assignmentAverage": 61, "classAverage": 70 },
         "weeklyTrend": [71, 69, 66, 65, 64, 63],
         "monthlyTrend": [75, 72, 67, 64],
-        "feedback": "Lab work is good, but theory retention needs more revision."
+        "feedback": "Pipeline concepts are there, but YAML debugging and deployment flow need more reps."
       },
       {
-        "id": "ma301",
-        "name": "Discrete Mathematics",
-        "faculty": "Prof. P. Singh",
-        "attendance": { "attended": 29, "total": 35 },
+        "id": "k8s",
+        "name": "Kubernetes Fundamentals",
+        "faculty": "P. Singh",
+        "attendance": { "attended": 11, "total": 13 },
         "marks": { "mid": 88, "end": 0, "internal": 90, "assignmentAverage": 86, "classAverage": 79 },
         "weeklyTrend": [78, 81, 84, 86, 88, 89],
         "monthlyTrend": [74, 79, 84, 88],
-        "feedback": "Excellent consistency and neat proof-writing."
+        "feedback": "Excellent consistency. Your troubleshooting approach is strong in cluster labs."
       }
     ],
     "assignments": [
       {
         "id": "asg-1",
-        "title": "DBMS Mini Project",
-        "subjectId": "cs302",
+        "title": "Docker Compose Deployment Task",
+        "subjectId": "docker",
         "dueDate": "2026-04-24T17:00:00.000Z",
         "status": "pending",
         "submittedAt": null,
         "late": false,
-        "feedback": "Submit ER diagram and SQL dump together.",
-        "instructorComment": "Need final documentation.",
+        "feedback": "Submit compose file, environment notes, and deployment screenshots together.",
+        "instructorComment": "Need the final walkthrough recording.",
         "fileName": null,
         "fileSizeKb": null
       },
       {
         "id": "asg-2",
-        "title": "OS Scheduling Lab",
-        "subjectId": "cs303",
+        "title": "Jenkins Pipeline Lab",
+        "subjectId": "ci-cd",
         "dueDate": "2026-04-18T17:00:00.000Z",
         "status": "submitted",
         "submittedAt": "2026-04-19T09:30:00.000Z",
         "late": true,
-        "feedback": "Implementation works, explain round robin edge cases better.",
-        "instructorComment": "Marks may improve after viva.",
-        "fileName": "os-lab-report.pdf",
+        "feedback": "Pipeline runs, but stage logging and rollback explanation need improvement.",
+        "instructorComment": "Assessment may improve after demo review.",
+        "fileName": "jenkins-pipeline-lab.pdf",
         "fileSizeKb": 824
       },
       {
         "id": "asg-3",
-        "title": "DSA Complexity Sheet",
-        "subjectId": "cs301",
+        "title": "Linux Automation Script",
+        "subjectId": "linux",
         "dueDate": "2026-04-20T17:00:00.000Z",
         "status": "submitted",
         "submittedAt": "2026-04-20T13:10:00.000Z",
         "late": false,
-        "feedback": "Strong work, only one recurrence relation mistake.",
-        "instructorComment": "Keep this level for end-sems.",
-        "fileName": "complexity-sheet.pdf",
+        "feedback": "Good scripting logic. Add stronger error handling for production-style use.",
+        "instructorComment": "Keep this standard for the final evaluation.",
+        "fileName": "linux-automation-script.pdf",
         "fileSizeKb": 412
       }
     ],
     "calendarEvents": [
-      { "id": "evt-1", "type": "class", "title": "Data Structures", "date": "2026-04-23", "time": "09:00 AM", "subjectId": "cs301" },
-      { "id": "evt-2", "type": "class", "title": "Operating Systems", "date": "2026-04-23", "time": "11:00 AM", "subjectId": "cs303" },
-      { "id": "evt-3", "type": "deadline", "title": "DBMS Mini Project Due", "date": "2026-04-24", "time": "05:00 PM", "subjectId": "cs302" },
-      { "id": "evt-4", "type": "exam", "title": "Mid-Sem Re-evaluation Window", "date": "2026-04-28", "time": "10:00 AM", "subjectId": null },
-      { "id": "evt-5", "type": "exam", "title": "Discrete Mathematics Quiz", "date": "2026-04-30", "time": "02:00 PM", "subjectId": "ma301" }
+      { "id": "evt-1", "type": "class", "title": "Linux & Shell Session", "date": "2026-04-23", "time": "09:00 AM", "subjectId": "linux" },
+      { "id": "evt-2", "type": "class", "title": "CI/CD Pipeline Workshop", "date": "2026-04-23", "time": "11:00 AM", "subjectId": "ci-cd" },
+      { "id": "evt-3", "type": "deadline", "title": "Docker Deployment Task Due", "date": "2026-04-24", "time": "05:00 PM", "subjectId": "docker" },
+      { "id": "evt-4", "type": "exam", "title": "Mid-Bootcamp Assessment Window", "date": "2026-04-28", "time": "10:00 AM", "subjectId": null },
+      { "id": "evt-5", "type": "exam", "title": "Kubernetes Evaluation", "date": "2026-04-30", "time": "02:00 PM", "subjectId": "k8s" }
     ],
     "suggestions": [
       {
         "id": "sug-1",
-        "message": "Could we add more solved examples before the OS quiz?",
+        "message": "Could we add one more live troubleshooting session before the CI/CD evaluation?",
         "createdAt": "2026-04-21T10:15:00.000Z"
       }
     ],

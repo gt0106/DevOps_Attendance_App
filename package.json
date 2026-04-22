@@ -1,7 +1,7 @@
 {
-  "name": "student-dashboard-app",
+  "name": "devops-attendance-tracker",
   "version": "1.0.0",
-  "description": "Deployable student dashboard with predictions, notifications, analytics, calendar, and Express backend.",
+  "description": "Deployable DevOps attendance tracker with predictions, notifications, analytics, calendar, and Express backend.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

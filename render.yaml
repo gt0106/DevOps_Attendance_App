@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: student-dashboard-app
+    name: devops-attendance-tracker
     runtime: node
     plan: free
     buildCommand: npm install

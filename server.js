@@ -383,8 +383,8 @@ function buildNotifications(student, attendance, marks) {
       type: "attendance",
       title: "Attendance warning",
       message: attendance.percentage < 75
-        ? `You are at ${attendance.percentage}%. Attend ${attendance.requiredToReach75} upcoming classes to recover above 75%.`
-        : `You can only miss ${attendance.safeToMiss} more classes before dropping under 75%.`,
+        ? `You are at ${attendance.percentage}%. Attend ${attendance.requiredToReach75} upcoming sessions to recover above 75%.`
+        : `You can only miss ${attendance.safeToMiss} more sessions before dropping under 75%.`,
       severity: "high",
       read: false
     });
@@ -412,11 +412,11 @@ function buildNotifications(student, attendance, marks) {
 function buildAssistantHints(attendance, marks) {
   return {
     bunkAllowanceMessage: attendance.safeToMiss > 0
-      ? `You can skip ${attendance.safeToMiss} more classes and still stay above 75%, assuming the current totals stay consistent.`
-      : `You should avoid skipping classes right now because you are close to the 75% threshold.`,
+      ? `You can skip ${attendance.safeToMiss} more sessions and still stay above 75%, assuming the current totals stay consistent.`
+      : `You should avoid skipping sessions right now because you are close to the 75% threshold.`,
     marksImprovementMessage: marks.overallPredicted >= 85
-      ? "You are on track for strong marks. Focus on mock tests and revision speed."
-      : "Improve internals and assignment quality in weaker subjects to lift your final prediction."
+      ? "You are on track for a strong DevOps assessment. Focus on mock drills and deployment speed."
+      : "Improve lab performance and task quality in weaker DevOps modules to lift your final prediction."
   };
 }
 
@@ -442,9 +442,9 @@ function buildDashboardPayload(student) {
   const predictions = {
     attendanceRisk: attendance.percentage < 75 ? "high" : attendance.percentage < 80 ? "medium" : "low",
     attendanceMessage: attendance.percentage < 75
-      ? `Risk detected. Attend ${attendance.requiredToReach75} consecutive classes to move above 75%.`
-      : `Healthy range. You can miss ${attendance.safeToMiss} class${attendance.safeToMiss === 1 ? "" : "es"} and remain above 75%.`,
-    marksMessage: `Predicted semester score is ${marks.overallPredicted}% based on mid-sem, internals, assignments, and recent trend.`
+      ? `Risk detected. Attend ${attendance.requiredToReach75} consecutive sessions to move above 75%.`
+      : `Healthy range. You can miss ${attendance.safeToMiss} session${attendance.safeToMiss === 1 ? "" : "s"} and remain above 75%.`,
+    marksMessage: `Predicted DevOps assessment score is ${marks.overallPredicted}% based on checkpoint scores, labs, tasks, and recent trend.`
   };
 
   const calendar = student.calendarEvents.map((event) => ({
@@ -477,7 +477,7 @@ function buildDashboardPayload(student) {
         status: "design-only",
         steps: [
           "Use Google OAuth 2.0 for account consent.",
-          "Map class, deadline, and exam events to Google Calendar event payloads.",
+          "Map session, deadline, and evaluation events to Google Calendar event payloads.",
           "Run a background sync job to keep dashboard updates aligned."
         ]
       }
@@ -539,7 +539,7 @@ app.get("/api/dashboard", requireAuth, async (req, res) => {
   const student = await storage.getStudentRecord(req.session.username);
 
   if (!student) {
-    return res.status(404).json({ message: "Student dashboard data not found" });
+    return res.status(404).json({ message: "DevOps tracker data not found" });
   }
 
   res.json(buildDashboardPayload(student));
@@ -638,7 +638,7 @@ app.post("/api/assistant/query", requireAuth, async (req, res) => {
 
   const student = await storage.getStudentRecord(req.session.username);
   if (!student) {
-    return res.status(404).json({ message: "Student dashboard data not found" });
+    return res.status(404).json({ message: "DevOps tracker data not found" });
   }
 
   const dashboard = buildDashboardPayload(student);
@@ -663,9 +663,9 @@ app.post("/api/assistant/query", requireAuth, async (req, res) => {
   res.json({
     answer,
     suggestedPrompts: [
-      "Can I skip classes and still maintain 75%?",
-      "How can I improve my marks?",
-      "Which assignment should I finish first?"
+      "Can I skip sessions and still maintain 75%?",
+      "How can I improve my DevOps assessment score?",
+      "Which task should I finish first?"
     ]
   });
 });
@@ -691,7 +691,7 @@ async function start() {
   try {
     await storage.init();
     app.listen(PORT, () => {
-      console.log(`Student Dashboard running on http://localhost:${PORT} using ${storage.mode}`);
+      console.log(`DevOps Attendance Tracker running on http://localhost:${PORT} using ${storage.mode}`);
     });
   } catch (error) {
     console.error("Failed to start server", error);

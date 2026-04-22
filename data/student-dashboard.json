@@ -1,0 +1,137 @@
+[
+  {
+    "username": "admin",
+    "profile": {
+      "name": "Aarav Sharma",
+      "program": "B.Tech CSE",
+      "semester": 6,
+      "section": "A",
+      "advisor": "Dr. Meera Iyer"
+    },
+    "goals": {
+      "attendanceTarget": 85,
+      "marksTarget": 88
+    },
+    "subjects": [
+      {
+        "id": "cs301",
+        "name": "Data Structures",
+        "faculty": "Prof. R. Nair",
+        "attendance": { "attended": 32, "total": 38 },
+        "marks": { "mid": 82, "end": 0, "internal": 84, "assignmentAverage": 87, "classAverage": 76 },
+        "weeklyTrend": [72, 74, 75, 77, 79, 80],
+        "monthlyTrend": [68, 72, 78, 81],
+        "feedback": "Great problem solving, focus on time complexity explanations."
+      },
+      {
+        "id": "cs302",
+        "name": "Database Systems",
+        "faculty": "Prof. S. Kapoor",
+        "attendance": { "attended": 26, "total": 37 },
+        "marks": { "mid": 74, "end": 0, "internal": 71, "assignmentAverage": 76, "classAverage": 73 },
+        "weeklyTrend": [70, 71, 70, 69, 71, 72],
+        "monthlyTrend": [72, 73, 71, 74],
+        "feedback": "Query design is improving, revise normalization and indexing."
+      },
+      {
+        "id": "cs303",
+        "name": "Operating Systems",
+        "faculty": "Prof. N. Thomas",
+        "attendance": { "attended": 22, "total": 33 },
+        "marks": { "mid": 63, "end": 0, "internal": 67, "assignmentAverage": 61, "classAverage": 70 },
+        "weeklyTrend": [71, 69, 66, 65, 64, 63],
+        "monthlyTrend": [75, 72, 67, 64],
+        "feedback": "Lab work is good, but theory retention needs more revision."
+      },
+      {
+        "id": "ma301",
+        "name": "Discrete Mathematics",
+        "faculty": "Prof. P. Singh",
+        "attendance": { "attended": 29, "total": 35 },
+        "marks": { "mid": 88, "end": 0, "internal": 90, "assignmentAverage": 86, "classAverage": 79 },
+        "weeklyTrend": [78, 81, 84, 86, 88, 89],
+        "monthlyTrend": [74, 79, 84, 88],
+        "feedback": "Excellent consistency and neat proof-writing."
+      }
+    ],
+    "assignments": [
+      {
+        "id": "asg-1",
+        "title": "DBMS Mini Project",
+        "subjectId": "cs302",
+        "dueDate": "2026-04-24T17:00:00.000Z",
+        "status": "pending",
+        "submittedAt": null,
+        "late": false,
+        "feedback": "Submit ER diagram and SQL dump together.",
+        "instructorComment": "Need final documentation.",
+        "fileName": null,
+        "fileSizeKb": null
+      },
+      {
+        "id": "asg-2",
+        "title": "OS Scheduling Lab",
+        "subjectId": "cs303",
+        "dueDate": "2026-04-18T17:00:00.000Z",
+        "status": "submitted",
+        "submittedAt": "2026-04-19T09:30:00.000Z",
+        "late": true,
+        "feedback": "Implementation works, explain round robin edge cases better.",
+        "instructorComment": "Marks may improve after viva.",
+        "fileName": "os-lab-report.pdf",
+        "fileSizeKb": 824
+      },
+      {
+        "id": "asg-3",
+        "title": "DSA Complexity Sheet",
+        "subjectId": "cs301",
+        "dueDate": "2026-04-20T17:00:00.000Z",
+        "status": "submitted",
+        "submittedAt": "2026-04-20T13:10:00.000Z",
+        "late": false,
+        "feedback": "Strong work, only one recurrence relation mistake.",
+        "instructorComment": "Keep this level for end-sems.",
+        "fileName": "complexity-sheet.pdf",
+        "fileSizeKb": 412
+      }
+    ],
+    "calendarEvents": [
+      { "id": "evt-1", "type": "class", "title": "Data Structures", "date": "2026-04-23", "time": "09:00 AM", "subjectId": "cs301" },
+      { "id": "evt-2", "type": "class", "title": "Operating Systems", "date": "2026-04-23", "time": "11:00 AM", "subjectId": "cs303" },
+      { "id": "evt-3", "type": "deadline", "title": "DBMS Mini Project Due", "date": "2026-04-24", "time": "05:00 PM", "subjectId": "cs302" },
+      { "id": "evt-4", "type": "exam", "title": "Mid-Sem Re-evaluation Window", "date": "2026-04-28", "time": "10:00 AM", "subjectId": null },
+      { "id": "evt-5", "type": "exam", "title": "Discrete Mathematics Quiz", "date": "2026-04-30", "time": "02:00 PM", "subjectId": "ma301" }
+    ],
+    "suggestions": [
+      {
+        "id": "sug-1",
+        "message": "Could we add more solved examples before the OS quiz?",
+        "createdAt": "2026-04-21T10:15:00.000Z"
+      }
+    ],
+    "attendanceLog": [
+      { "date": "2026-04-01", "status": "present" },
+      { "date": "2026-04-02", "status": "present" },
+      { "date": "2026-04-03", "status": "absent" },
+      { "date": "2026-04-04", "status": "present" },
+      { "date": "2026-04-05", "status": "present" },
+      { "date": "2026-04-06", "status": "present" },
+      { "date": "2026-04-07", "status": "present" },
+      { "date": "2026-04-08", "status": "absent" },
+      { "date": "2026-04-09", "status": "present" },
+      { "date": "2026-04-10", "status": "present" },
+      { "date": "2026-04-11", "status": "present" },
+      { "date": "2026-04-12", "status": "present" },
+      { "date": "2026-04-13", "status": "present" },
+      { "date": "2026-04-14", "status": "absent" },
+      { "date": "2026-04-15", "status": "present" },
+      { "date": "2026-04-16", "status": "present" },
+      { "date": "2026-04-17", "status": "present" },
+      { "date": "2026-04-18", "status": "present" },
+      { "date": "2026-04-19", "status": "present" },
+      { "date": "2026-04-20", "status": "present" },
+      { "date": "2026-04-21", "status": "present" },
+      { "date": "2026-04-22", "status": "present" }
+    ]
+  }
+]

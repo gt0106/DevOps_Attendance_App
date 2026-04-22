@@ -1,8 +1,8 @@
 const { useEffect, useMemo, useRef, useState } = React;
 
 const STORAGE_KEYS = {
-  session: "attendance-session",
-  theme: "attendance-theme"
+  session: "student-dashboard-session",
+  theme: "student-dashboard-theme"
 };
 
 const api = {
@@ -26,47 +26,55 @@ const api = {
 
     return data;
   },
+
   login(credentials) {
     return this.request("/api/login", {
       method: "POST",
       body: JSON.stringify(credentials)
     });
   },
+
   logout() {
     return this.request("/api/logout", { method: "POST" });
   },
-  getSession() {
-    return this.request("/api/session");
+
+  getDashboard() {
+    return this.request("/api/dashboard");
   },
-  getAttendance() {
-    return this.request("/api/attendance");
-  },
-  createAttendance(status) {
-    return this.request("/api/attendance", {
-      method: "POST",
-      body: JSON.stringify({ status })
-    });
-  },
-  updateAttendance(id, payload) {
-    return this.request(`/api/attendance/${id}`, {
+
+  updateGoals(payload) {
+    return this.request("/api/goals", {
       method: "PUT",
       body: JSON.stringify(payload)
     });
   },
-  deleteAttendance(id) {
-    return this.request(`/api/attendance/${id}`, {
-      method: "DELETE"
+
+  submitFeedback(message) {
+    return this.request("/api/feedback", {
+      method: "POST",
+      body: JSON.stringify({ message })
     });
   },
-  getMeta() {
-    return this.request("/api/meta");
+
+  uploadAssignment(id, payload) {
+    return this.request(`/api/assignments/${id}/upload`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  },
+
+  askAssistant(question) {
+    return this.request("/api/assistant/query", {
+      method: "POST",
+      body: JSON.stringify({ question })
+    });
   }
 };
 
 function loadSession() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.session) || "null");
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -79,616 +87,604 @@ function clearSession() {
   localStorage.removeItem(STORAGE_KEYS.session);
 }
 
+function loadTheme() {
+  return localStorage.getItem(STORAGE_KEYS.theme) || "light";
+}
+
+function saveTheme(theme) {
+  localStorage.setItem(STORAGE_KEYS.theme, theme);
+}
+
 function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString("en-IN", {
-    year: "numeric",
+    day: "numeric",
     month: "short",
-    day: "numeric"
+    year: "numeric"
   });
 }
 
 function formatDateTime(dateString) {
   return new Date(dateString).toLocaleString("en-IN", {
-    year: "numeric",
-    month: "short",
     day: "numeric",
-    hour: "2-digit",
+    month: "short",
+    hour: "numeric",
     minute: "2-digit"
   });
 }
 
-function toInputDateTime(dateString) {
-  const date = new Date(dateString);
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
+function progressValue(current, target) {
+  if (!target) {
+    return 0;
+  }
+  return Math.min(100, Math.round((current / target) * 100));
 }
 
-function getStats(records) {
-  const present = records.filter((record) => record.status === "present").length;
-  const absent = records.filter((record) => record.status === "absent").length;
-  const total = present + absent;
-  const percentage = total ? Math.round((present / total) * 100) : 0;
-  return { present, absent, total, percentage };
+function getCalendarMatrix(events) {
+  const reference = events[0]?.date ? new Date(events[0].date) : new Date();
+  const year = reference.getFullYear();
+  const month = reference.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const start = new Date(firstDay);
+  start.setDate(firstDay.getDate() - firstDay.getDay());
+
+  return Array.from({ length: 35 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    const iso = date.toISOString().slice(0, 10);
+    return {
+      iso,
+      day: date.getDate(),
+      currentMonth: date.getMonth() === month,
+      events: events.filter((event) => event.date === iso)
+    };
+  });
 }
 
-function exportCsv(records) {
-  const lines = [
-    ["Date", "Status", "Time"].join(","),
-    ...records.map((record) =>
-      [
-        `"${formatDate(record.dateTime)}"`,
-        record.status,
-        `"${new Date(record.dateTime).toLocaleTimeString("en-IN", {
-          hour: "2-digit",
-          minute: "2-digit"
-        })}"`
-      ].join(",")
-    )
-  ];
-
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "attendance-report.csv";
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function useTheme() {
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem(STORAGE_KEYS.theme) || "dark"
-  );
-
+function useChart(canvasRef, type, data, options) {
   useEffect(() => {
-    document.body.classList.toggle("dark", theme === "dark");
-    localStorage.setItem(STORAGE_KEYS.theme, theme);
-  }, [theme]);
+    if (!canvasRef.current || !data) {
+      return undefined;
+    }
 
-  return { theme, setTheme };
+    const chart = new Chart(canvasRef.current, {
+      type,
+      data,
+      options
+    });
+
+    return () => chart.destroy();
+  }, [canvasRef, type, data, options]);
 }
 
-function NotificationStack({ notifications }) {
-  return (
-    <div className="toast-stack">
-      {notifications.map((item) => (
-        <div key={item.id} className={`toast ${item.type}`}>
-          <div className="strong">{item.title}</div>
-          <div>{item.message}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function LoginPage({ onLogin, loading, error, theme, onToggleTheme }) {
-  const [form, setForm] = useState({ username: "admin", password: "admin123" });
+function LoginScreen({ onLogin, loading, error }) {
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("admin123");
 
   return (
     <div className="login-page">
       <div className="login-card glass">
-        <div className="btn-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-          <span className="brand-tag">DevOps Attendance v1.0</span>
-          <button className="btn btn-secondary" onClick={onToggleTheme}>
-            {theme === "dark" ? "Light Mode" : "Dark Mode"}
-          </button>
-        </div>
-        <h1 className="login-title">Attendance Tracking Built Like a Product.</h1>
+        <span className="brand-tag">Student Success Hub</span>
+        <h1 className="login-title">A smarter dashboard for attendance, marks, and momentum.</h1>
         <p className="login-copy">
-          Sign in to manage attendance, track team consistency, and review reports with a
-          modern DevOps dashboard.
+          Sign in to view predictions, deadlines, goals, analytics, and AI-guided study support.
         </p>
+
         <div className="form-grid">
           <label className="field-label">
             Username
-            <input
-              className="field-input"
-              value={form.username}
-              onChange={(event) => setForm({ ...form, username: event.target.value })}
-              placeholder="Enter username"
-            />
+            <input className="field-input" value={username} onChange={(event) => setUsername(event.target.value)} />
           </label>
           <label className="field-label">
             Password
             <input
               className="field-input"
               type="password"
-              value={form.password}
-              onChange={(event) => setForm({ ...form, password: event.target.value })}
-              placeholder="Enter password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
             />
           </label>
-          {error ? <div className="subtle" style={{ color: "var(--absent)" }}>{error}</div> : null}
-          <button className="btn btn-primary" onClick={() => onLogin(form)} disabled={loading}>
-            {loading ? "Signing In..." : "Login"}
+          <button className="btn btn-primary" onClick={() => onLogin({ username, password })} disabled={loading}>
+            {loading ? "Signing in..." : "Open Dashboard"}
           </button>
+          {error ? <div className="inline-alert error">{error}</div> : null}
+          <p className="subtle">Demo credentials are prefilled so you can explore quickly.</p>
         </div>
-        <p className="subtle">Demo credentials: admin / admin123 or engineer / devops123</p>
       </div>
     </div>
   );
 }
 
-function Navbar({ page, onNavigate, onLogout, theme, onToggleTheme, meta }) {
-  const items = [
-    { key: "home", label: "Home" },
-    { key: "attendance", label: "Attendance" },
-    { key: "reports", label: "Reports" }
-  ];
+function StatCard({ label, value, detail, tone = "default" }) {
+  return (
+    <div className={`summary-card glass ${tone}`}>
+      <div className="summary-label">{label}</div>
+      <div className="summary-value">{value}</div>
+      <div className="subtle">{detail}</div>
+      <div className="summary-accent" />
+    </div>
+  );
+}
+
+function ProgressBar({ label, current, target, suffix = "%" }) {
+  const percent = progressValue(current, target);
 
   return (
-    <div className="topbar glass">
-      <div className="brand-block">
-        <div className="brand-line">
-          <span className="brand-name">DevOps Attendance Tracker</span>
-          <span className="version-chip">{meta?.version || "v1.0"}</span>
-        </div>
-        <div className="subtle">
-          Last updated: {meta?.lastUpdated ? formatDateTime(meta.lastUpdated) : "Loading..."}
-        </div>
+    <div className="goal-item">
+      <div className="goal-meta">
+        <strong>{label}</strong>
+        <span>{current}{suffix} / {target}{suffix}</span>
       </div>
-      <div className="nav-links">
-        {items.map((item) => (
-          <button
-            key={item.key}
-            className={`btn nav-btn ${page === item.key ? "active" : ""}`}
-            onClick={() => onNavigate(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-        <button className="btn btn-secondary" onClick={onToggleTheme}>
-          {theme === "dark" ? "Light" : "Dark"}
-        </button>
-        <button className="btn btn-secondary" onClick={onLogout}>
-          Logout
-        </button>
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
 }
 
-function SummaryCards({ stats }) {
-  const cards = [
-    { label: "Total Present Days", value: stats.present },
-    { label: "Total Absent Days", value: stats.absent },
-    { label: "Attendance Percentage", value: `${stats.percentage}%` }
-  ];
-
+function NotificationBell({ items, open, onToggle }) {
   return (
-    <div className="summary-grid">
-      {cards.map((card) => (
-        <div key={card.label} className="summary-card glass">
-          <div className="summary-label">{card.label}</div>
-          <div className="summary-value">{card.value}</div>
-          <div className="summary-accent" />
+    <div className="notification-wrap">
+      <button className="btn btn-secondary bell-btn" onClick={onToggle}>
+        <span>Bell</span>
+        <span className="notification-count">{items.length}</span>
+      </button>
+      {open ? (
+        <div className="notification-dropdown glass">
+          <div className="section-header compact">
+            <h3 className="section-title">Notifications</h3>
+            <span className="subtle">{items.length} active</span>
+          </div>
+          {items.length ? items.map((item) => (
+            <div key={item.id} className={`notification-item ${item.severity}`}>
+              <strong>{item.title}</strong>
+              <p>{item.message}</p>
+            </div>
+          )) : <p className="empty-state">No alerts right now.</p>}
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }
 
-function AttendanceActions({ onMark, busy }) {
+function InsightPanel({ predictions, attendance, marks }) {
+  return (
+    <div className="section-card glass insight-panel">
+      <div className="section-header compact">
+        <div>
+          <span className="mini-chip">Smart Insights</span>
+          <h2 className="section-title">Predictions and early signals</h2>
+        </div>
+      </div>
+      <div className="insight-list">
+        <div className={`insight-pill ${predictions.attendanceRisk}`}>
+          <strong>Attendance risk</strong>
+          <span>{predictions.attendanceMessage}</span>
+        </div>
+        <div className="insight-pill neutral">
+          <strong>Marks forecast</strong>
+          <span>{predictions.marksMessage}</span>
+        </div>
+        <div className="metrics-grid two-up">
+          <div className="metric-tile">
+            <span className="metric-label">Safe to skip</span>
+            <strong>{attendance.safeToMiss} classes</strong>
+          </div>
+          <div className="metric-tile">
+            <span className="metric-label">Predicted final</span>
+            <strong>{marks.overallPredicted}%</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GoalCard({ goals, overview, onSave }) {
+  const [attendanceTarget, setAttendanceTarget] = useState(goals.attendanceTarget);
+  const [marksTarget, setMarksTarget] = useState(goals.marksTarget);
+
+  useEffect(() => {
+    setAttendanceTarget(goals.attendanceTarget);
+    setMarksTarget(goals.marksTarget);
+  }, [goals]);
+
   return (
     <div className="section-card glass">
-      <div className="section-header">
+      <div className="section-header compact">
         <div>
-          <h2 className="section-title">Attendance Actions</h2>
-          <div className="subtle">Mark your status for today. Duplicate entries are blocked.</div>
+          <span className="mini-chip">Goals</span>
+          <h2 className="section-title">Target tracking</h2>
         </div>
       </div>
-      <div className="quick-actions">
-        <button className="btn btn-success" onClick={() => onMark("present")} disabled={busy}>
-          Mark Present
-        </button>
-        <button className="btn btn-danger" onClick={() => onMark("absent")} disabled={busy}>
-          Mark Absent
-        </button>
+      <div className="form-grid compact-grid">
+        <label className="field-label">
+          Attendance goal
+          <input
+            className="field-input"
+            type="number"
+            min="60"
+            max="100"
+            value={attendanceTarget}
+            onChange={(event) => setAttendanceTarget(event.target.value)}
+          />
+        </label>
+        <label className="field-label">
+          Marks goal
+          <input
+            className="field-input"
+            type="number"
+            min="35"
+            max="100"
+            value={marksTarget}
+            onChange={(event) => setMarksTarget(event.target.value)}
+          />
+        </label>
       </div>
+      <div className="goal-stack">
+        <ProgressBar label="Attendance" current={overview.attendancePercentage} target={goals.attendanceTarget} />
+        <ProgressBar label="Predicted marks" current={overview.predictedMarks} target={goals.marksTarget} />
+      </div>
+      <button
+        className="btn btn-primary"
+        onClick={() => onSave({ attendanceTarget, marksTarget })}
+      >
+        Save Goals
+      </button>
     </div>
   );
 }
 
-function Filters({ filters, onChange, onReset, onExport, resultCount }) {
-  return (
-    <div className="section-card glass filters-panel">
-      <div className="section-header">
-        <div>
-          <h2 className="section-title">Search & Filter</h2>
-          <div className="subtle">Search by exact date or narrow records by a date range.</div>
-        </div>
-        <span className="mini-chip">{resultCount} records</span>
-      </div>
-      <div className="filter-grid">
-        <label className="field-label">
-          Search Date
-          <input
-            className="field-input"
-            type="date"
-            value={filters.searchDate}
-            onChange={(event) => onChange("searchDate", event.target.value)}
-          />
-        </label>
-        <label className="field-label">
-          From
-          <input
-            className="field-input"
-            type="date"
-            value={filters.from}
-            onChange={(event) => onChange("from", event.target.value)}
-          />
-        </label>
-        <label className="field-label">
-          To
-          <input
-            className="field-input"
-            type="date"
-            value={filters.to}
-            onChange={(event) => onChange("to", event.target.value)}
-          />
-        </label>
-      </div>
-      <div className="history-actions">
-        <button className="btn btn-secondary" onClick={onReset}>
-          Reset Filters
-        </button>
-        <button className="btn btn-primary" onClick={onExport}>
-          Export CSV
-        </button>
-      </div>
-    </div>
-  );
-}
+function TrendCharts({ trends }) {
+  const attendanceRef = useRef(null);
+  const marksRef = useRef(null);
 
-function CalendarView({ records }) {
-  const [monthCursor, setMonthCursor] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
-
-  const recordMap = useMemo(() => {
-    return records.reduce((acc, record) => {
-      acc[record.date] = record;
-      return acc;
-    }, {});
-  }, [records]);
-
-  const monthMeta = useMemo(() => {
-    const year = monthCursor.getFullYear();
-    const month = monthCursor.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const leading = firstDay.getDay();
-    const totalCells = Math.ceil((leading + lastDay.getDate()) / 7) * 7;
-    const days = [];
-
-    for (let index = 0; index < totalCells; index += 1) {
-      const date = new Date(year, month, index - leading + 1);
-      const iso = new Date(
-        Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0)
-      )
-        .toISOString()
-        .split("T")[0];
-      const record = recordMap[iso];
-      days.push({
-        iso,
-        isCurrentMonth: date.getMonth() === month,
-        dayNumber: date.getDate(),
-        status: record?.status || ""
-      });
+  const sharedOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        grid: { color: "rgba(148, 163, 184, 0.18)" }
+      },
+      x: {
+        grid: { display: false }
+      }
     }
+  }), []);
 
-    return {
-      label: firstDay.toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
-      days
-    };
-  }, [monthCursor, recordMap]);
+  const attendanceData = useMemo(() => ({
+    labels: trends.weeklyAttendance.map((item) => item.label),
+    datasets: [
+      {
+        label: "Attendance",
+        data: trends.weeklyAttendance.map((item) => item.attendance),
+        borderColor: "#14b8a6",
+        backgroundColor: "rgba(20, 184, 166, 0.18)",
+        tension: 0.35,
+        fill: true
+      }
+    ]
+  }), [trends]);
+
+  const marksData = useMemo(() => ({
+    labels: trends.monthlyMarks.map((item) => item.label),
+    datasets: [
+      {
+        label: "Marks",
+        data: trends.monthlyMarks.map((item) => item.marks),
+        backgroundColor: ["#2563eb", "#14b8a6", "#f59e0b", "#ef4444"]
+      }
+    ]
+  }), [trends]);
+
+  useChart(attendanceRef, "line", attendanceData, sharedOptions);
+  useChart(marksRef, "bar", marksData, sharedOptions);
+
+  return (
+    <div className="chart-grid">
+      <div className="chart-card glass">
+        <div className="section-header compact">
+          <h2 className="section-title">Weekly attendance trend</h2>
+          <span className="subtle">Rolling classroom consistency</span>
+        </div>
+        <div className="chart-box"><canvas ref={attendanceRef} /></div>
+      </div>
+      <div className="chart-card glass">
+        <div className="section-header compact">
+          <h2 className="section-title">Monthly marks trend</h2>
+          <span className="subtle">Score movement over time</span>
+        </div>
+        <div className="chart-box"><canvas ref={marksRef} /></div>
+      </div>
+    </div>
+  );
+}
+
+function SubjectAnalytics({ subjects, analytics }) {
+  return (
+    <div className="section-card glass">
+      <div className="section-header compact">
+        <div>
+          <span className="mini-chip">Performance Analytics</span>
+          <h2 className="section-title">Subject-wise breakdown</h2>
+        </div>
+      </div>
+      <div className="subject-grid">
+        {subjects.map((subject) => {
+          const attendancePct = Math.round((subject.attendance.attended / subject.attendance.total) * 100);
+          return (
+            <div key={subject.id} className="subject-card">
+              <div className="subject-head">
+                <div>
+                  <strong>{subject.name}</strong>
+                  <div className="subtle">{subject.faculty}</div>
+                </div>
+                <span className={`status-pill ${attendancePct < 75 ? "danger" : "good"}`}>{attendancePct}%</span>
+              </div>
+              <div className="subject-metrics">
+                <span>Mid: {subject.marks.mid}%</span>
+                <span>Internal: {subject.marks.internal}%</span>
+                <span>Assignments: {subject.marks.assignmentAverage}%</span>
+                <span>Class avg: {subject.marks.classAverage}%</span>
+              </div>
+              <p className="subtle">{subject.feedback}</p>
+            </div>
+          );
+        })}
+      </div>
+      <div className="compare-grid">
+        <div>
+          <strong>Strengths</strong>
+          {analytics.subjectInsights.strengths.map((item) => <p key={item.subjectId} className="subtle">{item.name}: {item.reason}</p>)}
+        </div>
+        <div>
+          <strong>Weak areas</strong>
+          {analytics.subjectInsights.weaknesses.map((item) => <p key={item.subjectId} className="subtle">{item.name}: {item.reason}</p>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssignmentBoard({ assignments, subjects, onUpload }) {
+  const subjectMap = useMemo(
+    () => Object.fromEntries(subjects.map((subject) => [subject.id, subject.name])),
+    [subjects]
+  );
+
+  return (
+    <div className="section-card glass">
+      <div className="section-header compact">
+        <div>
+          <span className="mini-chip">Assignments</span>
+          <h2 className="section-title">Submission tracker</h2>
+        </div>
+      </div>
+      <div className="assignment-list">
+        {assignments.map((assignment) => (
+          <div key={assignment.id} className="assignment-card">
+            <div className="assignment-top">
+              <div>
+                <strong>{assignment.title}</strong>
+                <div className="subtle">{subjectMap[assignment.subjectId]}</div>
+              </div>
+              <span className={`status-pill ${assignment.status === "submitted" ? "good" : "warn"}`}>
+                {assignment.status}
+              </span>
+            </div>
+            <div className="assignment-meta">
+              <span>Due {formatDateTime(assignment.dueDate)}</span>
+              <span>{assignment.late ? "Late submission" : "On time"}</span>
+              <span>{assignment.fileName || "No file uploaded yet"}</span>
+            </div>
+            <p className="subtle">Instructor: {assignment.instructorComment}</p>
+            <p className="subtle">Feedback: {assignment.feedback}</p>
+            {assignment.status === "pending" ? (
+              <button
+                className="btn btn-secondary"
+                onClick={() => onUpload(assignment.id, assignment.title)}
+              >
+                Upload Submission
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CalendarPanel({ events }) {
+  const days = useMemo(() => getCalendarMatrix(events), [events]);
+  const monthTitle = events[0]?.date
+    ? new Date(events[0].date).toLocaleDateString("en-IN", { month: "long", year: "numeric" })
+    : "Calendar";
 
   return (
     <div className="section-card glass">
       <div className="calendar-toolbar">
         <div>
-          <h2 className="section-title">Calendar View</h2>
-          <div className="subtle">Green for present, red for absent.</div>
+          <span className="mini-chip">Calendar</span>
+          <h2 className="section-title">{monthTitle}</h2>
         </div>
-        <div className="toolbar-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={() =>
-              setMonthCursor(
-                new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1)
-              )
-            }
-          >
-            Prev
-          </button>
-          <span className="status-pill">{monthMeta.label}</span>
-          <button
-            className="btn btn-secondary"
-            onClick={() =>
-              setMonthCursor(
-                new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1)
-              )
-            }
-          >
-            Next
-          </button>
-        </div>
+        <div className="subtle">Google Calendar sync: design ready</div>
+      </div>
+      <div className="weekday-row">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="weekday">{day}</div>)}
       </div>
       <div className="calendar-days">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="weekday">
-            {day}
-          </div>
-        ))}
-        {monthMeta.days.map((day) => (
-          <div
-            key={day.iso}
-            className={`calendar-day ${day.isCurrentMonth ? "" : "other-month"} ${day.status}`}
-          >
-            <div className="day-number">{day.dayNumber}</div>
-            <div className="day-status">{day.status ? day.status.toUpperCase() : "No entry"}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Charts({ records, theme }) {
-  const pieRef = useRef(null);
-  const barRef = useRef(null);
-  const chartsRef = useRef([]);
-
-  useEffect(() => {
-    const stats = getStats(records);
-    const monthly = records.reduce((acc, record) => {
-      const label = new Date(record.dateTime).toLocaleDateString("en-IN", {
-        month: "short",
-        year: "numeric"
-      });
-      if (!acc[label]) {
-        acc[label] = { present: 0, absent: 0 };
-      }
-      acc[label][record.status] += 1;
-      return acc;
-    }, {});
-
-    chartsRef.current.forEach((chart) => chart.destroy());
-    chartsRef.current = [];
-
-    if (pieRef.current) {
-      chartsRef.current.push(
-        new Chart(pieRef.current, {
-          type: "pie",
-          data: {
-            labels: ["Present", "Absent"],
-            datasets: [
-              {
-                data: [stats.present, stats.absent],
-                backgroundColor: ["#16a34a", "#dc2626"],
-                borderWidth: 0
-              }
-            ]
-          },
-          options: {
-            plugins: {
-              legend: {
-                labels: { color: getComputedStyle(document.body).getPropertyValue("--text") }
-              }
-            }
-          }
-        })
-      );
-    }
-
-    if (barRef.current) {
-      const labels = Object.keys(monthly);
-      chartsRef.current.push(
-        new Chart(barRef.current, {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [
-              {
-                label: "Present",
-                data: labels.map((label) => monthly[label].present),
-                backgroundColor: "#16a34a"
-              },
-              {
-                label: "Absent",
-                data: labels.map((label) => monthly[label].absent),
-                backgroundColor: "#dc2626"
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              x: {
-                ticks: { color: getComputedStyle(document.body).getPropertyValue("--text") },
-                grid: { color: "rgba(148, 163, 184, 0.12)" }
-              },
-              y: {
-                ticks: { color: getComputedStyle(document.body).getPropertyValue("--text") },
-                grid: { color: "rgba(148, 163, 184, 0.12)" }
-              }
-            },
-            plugins: {
-              legend: {
-                labels: { color: getComputedStyle(document.body).getPropertyValue("--text") }
-              }
-            }
-          }
-        })
-      );
-    }
-
-    return () => {
-      chartsRef.current.forEach((chart) => chart.destroy());
-      chartsRef.current = [];
-    };
-  }, [records, theme]);
-
-  return (
-    <div className="chart-grid">
-      <div className="chart-card glass">
-        <h2 className="section-title">Attendance Distribution</h2>
-        <div className="subtle">Pie chart summary of all recorded days.</div>
-        <div className="chart-wrap">
-          <canvas ref={pieRef} height="240" />
-        </div>
-      </div>
-      <div className="chart-card glass">
-        <h2 className="section-title">Monthly Trend</h2>
-        <div className="subtle">Bar chart view for present and absent counts by month.</div>
-        <div className="chart-wrap">
-          <canvas ref={barRef} height="240" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EditModal({ record, onClose, onSave, busy }) {
-  const [form, setForm] = useState({
-    status: record.status,
-    dateTime: toInputDateTime(record.dateTime)
-  });
-
-  return (
-    <div className="modal-backdrop">
-      <div className="modal-card glass">
-        <h2 className="section-title">Edit Attendance</h2>
-        <div className="form-grid">
-          <label className="field-label">
-            Status
-            <select
-              className="field-select"
-              value={form.status}
-              onChange={(event) => setForm({ ...form, status: event.target.value })}
-            >
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-            </select>
-          </label>
-          <label className="field-label">
-            Date & Time
-            <input
-              className="field-input"
-              type="datetime-local"
-              value={form.dateTime}
-              onChange={(event) => setForm({ ...form, dateTime: event.target.value })}
-            />
-          </label>
-        </div>
-        <div className="modal-actions" style={{ marginTop: "18px" }}>
-          <button className="btn btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => onSave({ ...form, dateTime: new Date(form.dateTime).toISOString() })}
-            disabled={busy}
-          >
-            {busy ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AttendanceTable({ records, onEdit, onDelete }) {
-  return (
-    <div className="section-card glass history-table-wrap">
-      <div className="section-header">
-        <div>
-          <h2 className="section-title">Attendance History</h2>
-          <div className="subtle">Latest entries appear first.</div>
-        </div>
-      </div>
-      {records.length ? (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Time</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.map((record) => (
-              <tr key={record.id}>
-                <td>{formatDate(record.dateTime)}</td>
-                <td>
-                  <span className={`status-badge ${record.status}`}>{record.status}</span>
-                </td>
-                <td>
-                  {new Date(record.dateTime).toLocaleTimeString("en-IN", {
-                    hour: "2-digit",
-                    minute: "2-digit"
-                  })}
-                </td>
-                <td>
-                  <div className="btn-row">
-                    <button className="btn btn-secondary" onClick={() => onEdit(record)}>
-                      Edit
-                    </button>
-                    <button className="btn btn-danger" onClick={() => onDelete(record)}>
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
+        {days.map((day) => (
+          <div key={day.iso} className={`calendar-day ${day.currentMonth ? "" : "other-month"}`}>
+            <div className="day-number">{day.day}</div>
+            {day.events.map((event) => (
+              <div key={event.id} className={`event-pill ${event.type}`}>
+                {event.title}
+              </div>
             ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="empty-state">No attendance records match the current filters.</div>
-      )}
-    </div>
-  );
-}
-
-function Hero({ user, stats }) {
-  return (
-    <div className="hero glass">
-      <div className="hero-copy">
-        <span className="brand-tag">Reliable Attendance Insights</span>
-        <h1 className="page-title">Welcome back, {user.name}</h1>
-        <div className="subtle">
-          Role: <span className="strong">{user.role}</span>. Keep attendance logs current,
-          review trends quickly, and export reports when needed.
-        </div>
-      </div>
-      <div className="hero-stats">
-        <div className="status-pill">Current Attendance Rate: {stats.percentage}%</div>
-        <div className="subtle">
-          Present on {stats.present} day(s) and absent on {stats.absent} day(s).
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function ReportsPanel({ records }) {
-  const recent = records[0];
+function FeedbackCard({ suggestions, onSubmit }) {
+  const [message, setMessage] = useState("");
+
   return (
     <div className="section-card glass">
-      <h2 className="section-title">Report Highlights</h2>
-      <div className="metrics-grid">
-        <div className="subtle">
-          Most recent attendance entry:{" "}
-          <span className="strong">
-            {recent ? `${formatDateTime(recent.dateTime)} (${recent.status})` : "No records yet"}
-          </span>
+      <div className="section-header compact">
+        <div>
+          <span className="mini-chip">Feedback</span>
+          <h2 className="section-title">Suggestion box</h2>
         </div>
-        <div className="subtle">
-          Export the full history as CSV to share quick updates with your team or manager.
+      </div>
+      <textarea
+        className="field-input textarea"
+        rows="4"
+        placeholder="Share a suggestion for faculty or the dashboard..."
+        value={message}
+        onChange={(event) => setMessage(event.target.value)}
+      />
+      <button
+        className="btn btn-primary"
+        onClick={() => {
+          if (!message.trim()) {
+            return;
+          }
+          onSubmit(message);
+          setMessage("");
+        }}
+      >
+        Send Suggestion
+      </button>
+      <div className="feedback-list">
+        {suggestions.map((item) => (
+          <div key={item.id} className="feedback-item">
+            <strong>{formatDateTime(item.createdAt)}</strong>
+            <p>{item.message}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GamificationCard({ analytics }) {
+  return (
+    <div className="section-card glass">
+      <div className="section-header compact">
+        <div>
+          <span className="mini-chip">Gamification</span>
+          <h2 className="section-title">Badges and streaks</h2>
+        </div>
+      </div>
+      <div className="badge-grid">
+        {analytics.badges.map((badge) => (
+          <div key={badge.id} className="badge-card">
+            <strong>{badge.label}</strong>
+            <p>{badge.detail}</p>
+          </div>
+        ))}
+      </div>
+      <div className="streak-card">
+        <span className="metric-label">Current attendance streak</span>
+        <strong>{analytics.streak} days</strong>
+      </div>
+    </div>
+  );
+}
+
+function AssistantCard({ onAsk, answerState }) {
+  const [question, setQuestion] = useState("Can I skip classes and still maintain 75%?");
+
+  return (
+    <div className="section-card glass">
+      <div className="section-header compact">
+        <div>
+          <span className="mini-chip">AI Assistant</span>
+          <h2 className="section-title">Study helper</h2>
+        </div>
+      </div>
+      <div className="assistant-panel">
+        <input className="field-input" value={question} onChange={(event) => setQuestion(event.target.value)} />
+        <button className="btn btn-primary" onClick={() => onAsk(question)}>Ask</button>
+        <div className="assistant-answer">
+          <strong>Answer</strong>
+          <p>{answerState.answer || "Ask about attendance, marks, or assignment priorities."}</p>
+        </div>
+        <div className="prompt-row">
+          {answerState.suggestedPrompts?.map((prompt) => (
+            <button key={prompt} className="btn btn-secondary prompt-btn" onClick={() => { setQuestion(prompt); onAsk(prompt); }}>
+              {prompt}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ session, dashboard, theme, setTheme, onLogout, onGoalSave, onFeedbackSubmit, onAssignmentUpload, onAskAssistant, assistantState }) {
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  return (
+    <div className="app-shell">
+      <div className="topbar glass">
+        <div className="brand-block">
+          <div className="brand-line">
+            <span className="brand-tag">Student Dashboard</span>
+            <span className="version-chip">Responsive • Predictive • Minimal</span>
+          </div>
+          <h1 className="page-title">Welcome back, {dashboard.profile.name.split(" ")[0]}</h1>
+          <p className="subtle">
+            {dashboard.profile.program} • Semester {dashboard.profile.semester} • Advisor {dashboard.profile.advisor}
+          </p>
+        </div>
+        <div className="toolbar-actions">
+          <NotificationBell items={dashboard.notifications} open={notificationsOpen} onToggle={() => setNotificationsOpen((value) => !value)} />
+          <button className="btn btn-secondary" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          </button>
+          <button className="btn btn-secondary" onClick={onLogout}>Logout</button>
+        </div>
+      </div>
+
+      <div className="hero glass">
+        <div className="hero-copy">
+          <span className="mini-chip">Today at a glance</span>
+          <h2 className="section-title">Stay ahead with alerts, predictions, goals, and study guidance.</h2>
+          <p className="subtle">
+            This dashboard combines attendance health, assignment progress, marks forecasts, calendar planning, and instructor signals in one clean workspace.
+          </p>
+          <div className="quick-actions">
+            <button className="btn btn-primary">View class plan</button>
+            <button className="btn btn-secondary">Sync calendar design</button>
+          </div>
+        </div>
+        <InsightPanel predictions={dashboard.predictions} attendance={dashboard.attendance} marks={dashboard.marks} />
+      </div>
+
+      <div className="summary-grid">
+        <StatCard label="Attendance progress" value={`${dashboard.overview.attendancePercentage}%`} detail={`${dashboard.overview.attendedDays} of ${dashboard.overview.totalDays} classes attended`} />
+        <StatCard label="Assignment submissions" value={`${dashboard.overview.assignmentsSubmitted}/${dashboard.overview.assignmentsSubmitted + dashboard.overview.pendingAssignments}`} detail={`${dashboard.overview.pendingAssignments} pending right now`} tone="accent" />
+        <StatCard label="Predicted semester marks" value={`${dashboard.overview.predictedMarks}%`} detail="Based on current scores and trend signals" tone="success" />
+      </div>
+
+      <div className="page-grid">
+        <div className="stack-grid">
+          <GoalCard goals={dashboard.goals} overview={dashboard.overview} onSave={onGoalSave} />
+          <SubjectAnalytics subjects={dashboard.subjects} analytics={dashboard.analytics} />
+          <AssignmentBoard assignments={dashboard.assignments} subjects={dashboard.subjects} onUpload={onAssignmentUpload} />
+          <FeedbackCard suggestions={dashboard.suggestions} onSubmit={onFeedbackSubmit} />
+        </div>
+        <div className="stack-grid">
+          <TrendCharts trends={dashboard.trends} />
+          <CalendarPanel events={dashboard.calendar} />
+          <GamificationCard analytics={dashboard.analytics} />
+          <AssistantCard onAsk={onAskAssistant} answerState={assistantState} />
         </div>
       </div>
     </div>
@@ -696,29 +692,25 @@ function ReportsPanel({ records }) {
 }
 
 function App() {
-  const { theme, setTheme } = useTheme();
-  const [session, setSession] = useState(() => loadSession());
-  const [page, setPage] = useState("home");
-  const [records, setRecords] = useState([]);
-  const [meta, setMeta] = useState(null);
-  const [filters, setFilters] = useState({ searchDate: "", from: "", to: "" });
-  const [notifications, setNotifications] = useState([]);
-  const [busy, setBusy] = useState(false);
+  const [session, setSession] = useState(loadSession());
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [editingRecord, setEditingRecord] = useState(null);
+  const [theme, setThemeState] = useState(loadTheme());
+  const [assistantState, setAssistantState] = useState({ answer: "", suggestedPrompts: [] });
 
-  const pushNotification = (type, title, message) => {
-    const item = { id: crypto.randomUUID(), type, title, message };
-    setNotifications((current) => [...current, item]);
-    window.setTimeout(() => {
-      setNotifications((current) => current.filter((entry) => entry.id !== item.id));
-    }, 3200);
+  useEffect(() => {
+    document.body.classList.toggle("dark", theme === "dark");
+    saveTheme(theme);
+  }, [theme]);
+
+  const setTheme = (nextTheme) => {
+    setThemeState(nextTheme);
   };
 
-  const loadData = async () => {
-    const [attendanceRes, metaRes] = await Promise.all([api.getAttendance(), api.getMeta()]);
-    setRecords(attendanceRes.records);
-    setMeta(metaRes);
+  const loadDashboard = async () => {
+    const data = await api.getDashboard();
+    setDashboard(data);
   };
 
   useEffect(() => {
@@ -726,198 +718,95 @@ function App() {
       return;
     }
 
-    api
-      .getSession()
-      .then((data) => {
-        setSession((current) => ({ ...current, user: data.user }));
-        return loadData();
-      })
-      .catch(() => {
-        clearSession();
-        setSession(null);
-      });
-  }, []);
-
-  const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
-      const date = record.date;
-      if (filters.searchDate && date !== filters.searchDate) {
-        return false;
-      }
-      if (filters.from && date < filters.from) {
-        return false;
-      }
-      if (filters.to && date > filters.to) {
-        return false;
-      }
-      return true;
+    loadDashboard().catch((err) => {
+      setError(err.message);
+      clearSession();
+      setSession(null);
     });
-  }, [records, filters]);
-
-  const stats = useMemo(() => getStats(records), [records]);
+  }, [session]);
 
   const handleLogin = async (credentials) => {
-    setBusy(true);
+    setLoading(true);
     setError("");
     try {
-      const response = await api.login(credentials);
-      const nextSession = { token: response.token, user: response.user };
+      const result = await api.login(credentials);
+      const nextSession = { token: result.token, user: result.user };
       saveSession(nextSession);
       setSession(nextSession);
-      await loadData();
-      pushNotification("success", "Login Successful", `Welcome, ${response.user.name}`);
-    } catch (loginError) {
-      setError(loginError.message);
+    } catch (err) {
+      setError(err.message);
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
+  };
+
+  const syncDashboardState = (nextDashboard) => {
+    setDashboard(nextDashboard);
+  };
+
+  const handleGoalSave = async (payload) => {
+    const result = await api.updateGoals(payload);
+    syncDashboardState(result.dashboard);
+  };
+
+  const handleFeedbackSubmit = async (message) => {
+    const result = await api.submitFeedback(message);
+    syncDashboardState(result.dashboard);
+  };
+
+  const handleAssignmentUpload = async (assignmentId, title) => {
+    const fileName = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`;
+    const result = await api.uploadAssignment(assignmentId, {
+      fileName,
+      fileSizeKb: Math.floor(Math.random() * 800) + 200
+    });
+    syncDashboardState(result.dashboard);
+  };
+
+  const handleAssistantAsk = async (question) => {
+    const result = await api.askAssistant(question);
+    setAssistantState(result);
   };
 
   const handleLogout = async () => {
     try {
       await api.logout();
-    } catch (logoutError) {
-      // Ignore logout network issues and still clear local session.
+    } catch {
+      // Ignore logout failures for local demo flow.
     }
     clearSession();
     setSession(null);
-    setRecords([]);
-    setPage("home");
-  };
-
-  const handleMarkAttendance = async (status) => {
-    setBusy(true);
-    try {
-      const response = await api.createAttendance(status);
-      await loadData();
-      pushNotification(
-        "success",
-        "Attendance Updated",
-        `${response.record.status.toUpperCase()} marked for ${formatDate(response.record.dateTime)}`
-      );
-    } catch (actionError) {
-      pushNotification("error", "Action Failed", actionError.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleUpdateRecord = async (payload) => {
-    if (!editingRecord) {
-      return;
-    }
-
-    setBusy(true);
-    try {
-      await api.updateAttendance(editingRecord.id, payload);
-      await loadData();
-      setEditingRecord(null);
-      pushNotification("info", "Record Updated", "Attendance entry updated successfully.");
-    } catch (updateError) {
-      pushNotification("error", "Update Failed", updateError.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleDeleteRecord = async (record) => {
-    const confirmed = window.confirm(`Delete attendance for ${formatDate(record.dateTime)}?`);
-    if (!confirmed) {
-      return;
-    }
-
-    setBusy(true);
-    try {
-      await api.deleteAttendance(record.id);
-      await loadData();
-      pushNotification("info", "Record Deleted", "Attendance entry removed.");
-    } catch (deleteError) {
-      pushNotification("error", "Delete Failed", deleteError.message);
-    } finally {
-      setBusy(false);
-    }
+    setDashboard(null);
   };
 
   if (!session?.token) {
+    return <LoginScreen onLogin={handleLogin} loading={loading} error={error} />;
+  }
+
+  if (!dashboard) {
     return (
-      <>
-        <LoginPage
-          onLogin={handleLogin}
-          loading={busy}
-          error={error}
-          theme={theme}
-          onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
-        />
-        <NotificationStack notifications={notifications} />
-      </>
+      <div className="login-page">
+        <div className="login-card glass">
+          <h1 className="login-title">Loading dashboard...</h1>
+          <p className="subtle">We are preparing your analytics, notifications, and calendar.</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="app-shell">
-      <Navbar
-        page={page}
-        onNavigate={setPage}
-        onLogout={handleLogout}
-        theme={theme}
-        onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
-        meta={meta}
-      />
-
-      <div className="layout-grid">
-        <Hero user={session.user} stats={stats} />
-        <SummaryCards stats={stats} />
-
-        {(page === "home" || page === "attendance") && (
-          <div className="page-grid">
-            <div className="layout-grid">
-              <AttendanceActions onMark={handleMarkAttendance} busy={busy} />
-              <Filters
-                filters={filters}
-                onChange={(key, value) => setFilters((current) => ({ ...current, [key]: value }))}
-                onReset={() => setFilters({ searchDate: "", from: "", to: "" })}
-                onExport={() => exportCsv(filteredRecords)}
-                resultCount={filteredRecords.length}
-              />
-              <AttendanceTable
-                records={filteredRecords}
-                onEdit={setEditingRecord}
-                onDelete={handleDeleteRecord}
-              />
-            </div>
-            <CalendarView records={records} />
-          </div>
-        )}
-
-        {(page === "home" || page === "reports") && (
-          <>
-            <Charts records={records} theme={theme} />
-            <ReportsPanel records={records} />
-          </>
-        )}
-      </div>
-
-      <div className="footer-bar glass">
-        <div>
-          <div className="strong">Release {meta?.version || "v1.0"}</div>
-          <div className="subtle">Designed as a modular DevOps-style internal product.</div>
-        </div>
-        <div className="subtle">
-          Session user: <span className="strong">{session.user.username}</span>
-        </div>
-      </div>
-
-      {editingRecord ? (
-        <EditModal
-          record={editingRecord}
-          onClose={() => setEditingRecord(null)}
-          onSave={handleUpdateRecord}
-          busy={busy}
-        />
-      ) : null}
-
-      <NotificationStack notifications={notifications} />
-    </div>
+    <Dashboard
+      session={session}
+      dashboard={dashboard}
+      theme={theme}
+      setTheme={setTheme}
+      onLogout={handleLogout}
+      onGoalSave={handleGoalSave}
+      onFeedbackSubmit={handleFeedbackSubmit}
+      onAssignmentUpload={handleAssignmentUpload}
+      onAskAssistant={handleAssistantAsk}
+      assistantState={assistantState}
+    />
   );
 }
 

@@ -1,21 +1,39 @@
 {
-  "name": "devops-attendance-tracker",
+  "name": "student-dashboard-app",
   "version": "1.0.0",
-  "description": "Modern DevOps attendance tracking web app with React frontend and Express backend.",
+  "description": "Deployable student dashboard with predictions, notifications, analytics, calendar, and Express backend.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "check": "node --check server.js"
   },
   "keywords": [
-    "attendance",
+    "student-dashboard",
     "react",
     "express",
-    "devops",
-    "dashboard"
+    "dashboard",
+    "education"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
-    "express": "^4.21.2"
-  }
+    "chart.js": "^4.5.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.1",
+    "mongodb": "^7.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gt0106/DevOps_Attendance_App.git"
+  },
+  "author": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/gt0106/DevOps_Attendance_App/issues"
+  },
+  "homepage": "https://github.com/gt0106/DevOps_Attendance_App#readme"
 }

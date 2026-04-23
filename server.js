@@ -33,7 +33,7 @@ function createToken() {
 async function readJson(filePath, fallback) {
   try {
     const content = await fs.readFile(filePath, "utf8");
-    return JSON.parse(content);
+    return JSON.parse(content.replace(/^\uFEFF/, ""));
   } catch (error) {
     if (error.code === "ENOENT") {
       return fallback;
@@ -67,6 +67,90 @@ function sanitizeMongoDocument(document) {
   const nextValue = { ...document };
   delete nextValue._id;
   return nextValue;
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function createUsernameFromEmail(email) {
+  return normalizeEmail(email).split("@")[0].replace(/[^a-z0-9._-]/g, "") || `user-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function titleCaseFromEmail(email) {
+  const base = createUsernameFromEmail(email)
+    .replace(/[._-]+/g, " ")
+    .trim();
+
+  if (!base) {
+    return "DevOps Learner";
+  }
+
+  return base.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function createDashboardTemplate(email, enrollmentNo) {
+  return {
+    username: createUsernameFromEmail(email),
+    profile: {
+      name: titleCaseFromEmail(email),
+      courseTitle: "Fundamentals of DevOps",
+      cohort: "Current Cohort",
+      team: enrollmentNo,
+      mentor: "DevOps Faculty"
+    },
+    goals: {
+      attendanceTarget: 85,
+      marksTarget: 88
+    },
+    subjects: [
+      {
+        id: "linux",
+        name: "Linux & Shell",
+        faculty: "R. Nair",
+        attendance: { attended: 0, total: 0 },
+        marks: { mid: 0, end: 0, internal: 0, assignmentAverage: 0, classAverage: 76 },
+        weeklyTrend: [0, 0, 0, 0, 0, 0],
+        monthlyTrend: [0, 0, 0, 0],
+        feedback: "Your progress notes will appear here once assessments begin."
+      },
+      {
+        id: "docker",
+        name: "Docker & Containers",
+        faculty: "S. Kapoor",
+        attendance: { attended: 0, total: 0 },
+        marks: { mid: 0, end: 0, internal: 0, assignmentAverage: 0, classAverage: 73 },
+        weeklyTrend: [0, 0, 0, 0, 0, 0],
+        monthlyTrend: [0, 0, 0, 0],
+        feedback: "Your progress notes will appear here once assessments begin."
+      },
+      {
+        id: "ci-cd",
+        name: "CI/CD Pipelines",
+        faculty: "N. Thomas",
+        attendance: { attended: 0, total: 0 },
+        marks: { mid: 0, end: 0, internal: 0, assignmentAverage: 0, classAverage: 70 },
+        weeklyTrend: [0, 0, 0, 0, 0, 0],
+        monthlyTrend: [0, 0, 0, 0],
+        feedback: "Your progress notes will appear here once assessments begin."
+      }
+    ],
+    assignments: [],
+    calendarEvents: [],
+    suggestions: [
+      {
+        id: crypto.randomUUID(),
+        message: "Attendance must stay above 75 percent for course completion eligibility.",
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: crypto.randomUUID(),
+        message: "Keep your Docker, Linux, and CI/CD lab submissions organized for review.",
+        createdAt: new Date().toISOString()
+      }
+    ],
+    attendanceLog: []
+  };
 }
 
 const storage = {
@@ -115,6 +199,19 @@ const storage = {
     }
 
     return readSeedUsers();
+  },
+
+  async saveUsersCollection(records) {
+    if (this.mode === "mongodb") {
+      const usersCollection = mongoDb.collection("users");
+      await usersCollection.deleteMany({});
+      if (records.length) {
+        await usersCollection.insertMany(records);
+      }
+      return;
+    }
+
+    await writeJson(USERS_FILE, records);
   },
 
   async loadDashboardCollection() {
@@ -172,6 +269,18 @@ const storage = {
     collection[index] = nextValue;
     await this.saveDashboardCollection(collection);
     return nextValue;
+  },
+
+  async createUser(user, dashboardRecord) {
+    const users = await this.loadUsers();
+    users.push(user);
+    await this.saveUsersCollection(users);
+
+    const collection = await this.loadDashboardCollection();
+    collection.push(dashboardRecord);
+    await this.saveDashboardCollection(collection);
+
+    return { user, dashboardRecord };
   }
 };
 
@@ -486,21 +595,23 @@ function buildDashboardPayload(student) {
 }
 
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body || {};
+  const { email, password } = req.body || {};
   const users = await storage.loadUsers();
   const user = users.find(
-    (entry) => entry.username === username && entry.password === password
+    (entry) => normalizeEmail(entry.email) === normalizeEmail(email) && entry.password === password
   );
 
   if (!user) {
-    return res.status(401).json({ message: "Invalid username or password" });
+    return res.status(401).json({ message: "Invalid email or password" });
   }
 
   const token = createToken();
   const session = {
     username: user.username,
+    email: user.email,
     name: user.name,
     role: user.role,
+    enrollmentNo: user.enrollmentNo,
     createdAt: new Date().toISOString()
   };
 
@@ -509,6 +620,47 @@ app.post("/api/login", async (req, res) => {
   return res.json({
     token,
     user: session
+  });
+});
+
+app.post("/api/register", async (req, res) => {
+  const { email, password, enrollmentNo } = req.body || {};
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedEnrollment = String(enrollmentNo || "").trim();
+
+  if (!normalizedEmail || !password || !normalizedEnrollment) {
+    return res.status(400).json({ message: "Email, password, and enrollment number are required" });
+  }
+
+  const users = await storage.loadUsers();
+  const duplicate = users.find(
+    (entry) =>
+      normalizeEmail(entry.email) === normalizedEmail ||
+      String(entry.enrollmentNo || "").trim().toLowerCase() === normalizedEnrollment.toLowerCase()
+  );
+
+  if (duplicate) {
+    return res.status(409).json({ message: "An account already exists with this email or enrollment number" });
+  }
+
+  const username = createUsernameFromEmail(normalizedEmail);
+  const newUser = {
+    username,
+    email: normalizedEmail,
+    password,
+    enrollmentNo: normalizedEnrollment,
+    name: titleCaseFromEmail(normalizedEmail),
+    role: "DevOps Learner"
+  };
+  const dashboardRecord = {
+    ...createDashboardTemplate(normalizedEmail, normalizedEnrollment),
+    username
+  };
+
+  await storage.createUser(newUser, dashboardRecord);
+
+  res.status(201).json({
+    message: "Registration successful. Please sign in with your email and password."
   });
 });
 

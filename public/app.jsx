@@ -34,6 +34,13 @@ const api = {
     });
   },
 
+  register(payload) {
+    return this.request("/api/register", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  },
+
   logout() {
     return this.request("/api/logout", { method: "POST" });
   },
@@ -46,13 +53,6 @@ const api = {
     return this.request("/api/goals", {
       method: "PUT",
       body: JSON.stringify(payload)
-    });
-  },
-
-  submitFeedback(message) {
-    return this.request("/api/feedback", {
-      method: "POST",
-      body: JSON.stringify({ message })
     });
   },
 
@@ -148,39 +148,83 @@ function useChart(canvasRef, type, data, options) {
   }, [canvasRef, type, data, options]);
 }
 
-function LoginScreen({ onLogin, loading, error }) {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin123");
+function NotificationIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
+      <path d="M10 21a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
+function LoginScreen({ onLogin, onRegister, loading, error }) {
+  const [mode, setMode] = useState("login");
+  const [loginForm, setLoginForm] = useState({ email: "admin@devops.local", password: "admin123" });
+  const [registerForm, setRegisterForm] = useState({ email: "", password: "", enrollmentNo: "" });
+  const [message, setMessage] = useState("");
+
+  const handleRegister = async () => {
+    setMessage("");
+    const result = await onRegister(registerForm);
+    if (result?.message) {
+      setMessage(result.message);
+      setMode("login");
+      setLoginForm({ email: registerForm.email, password: registerForm.password });
+      setRegisterForm({ email: "", password: "", enrollmentNo: "" });
+    }
+  };
 
   return (
     <div className="login-page">
       <div className="login-card glass">
         <span className="brand-tag">DevOps Attendance Tracker</span>
-        <h1 className="login-title">A smarter dashboard for attendance, assessments, and delivery momentum.</h1>
+        <h1 className="login-title">Track attendance, deadlines, and assessment progress with a cleaner DevOps-focused dashboard.</h1>
         <p className="login-copy">
-          Sign in to view attendance predictions, task deadlines, performance analytics, and DevOps progress guidance.
+          Sign in with your email to view alerts, progress, important notes, and upcoming DevOps sessions.
         </p>
 
-        <div className="form-grid">
-          <label className="field-label">
-            Username
-            <input className="field-input" value={username} onChange={(event) => setUsername(event.target.value)} />
-          </label>
-          <label className="field-label">
-            Password
-            <input
-              className="field-input"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          <button className="btn btn-primary" onClick={() => onLogin({ username, password })} disabled={loading}>
-            {loading ? "Signing in..." : "Open Tracker"}
-          </button>
-          {error ? <div className="inline-alert error">{error}</div> : null}
-          <p className="subtle">Demo credentials are prefilled so you can explore quickly.</p>
+        <div className="btn-row">
+          <button className={`btn ${mode === "login" ? "btn-primary" : "btn-secondary"}`} onClick={() => setMode("login")}>Login</button>
+          <button className={`btn ${mode === "register" ? "btn-primary" : "btn-secondary"}`} onClick={() => setMode("register")}>Register</button>
         </div>
+
+        {mode === "login" ? (
+          <div className="form-grid">
+            <label className="field-label">
+              Email ID
+              <input className="field-input" value={loginForm.email} onChange={(event) => setLoginForm({ ...loginForm, email: event.target.value })} />
+            </label>
+            <label className="field-label">
+              Password
+              <input className="field-input" type="password" value={loginForm.password} onChange={(event) => setLoginForm({ ...loginForm, password: event.target.value })} />
+            </label>
+            <button className="btn btn-primary" onClick={() => onLogin(loginForm)} disabled={loading}>
+              {loading ? "Signing in..." : "Open Tracker"}
+            </button>
+          </div>
+        ) : (
+          <div className="form-grid">
+            <label className="field-label">
+              Enrollment No
+              <input className="field-input" value={registerForm.enrollmentNo} onChange={(event) => setRegisterForm({ ...registerForm, enrollmentNo: event.target.value })} />
+            </label>
+            <label className="field-label">
+              Email ID
+              <input className="field-input" value={registerForm.email} onChange={(event) => setRegisterForm({ ...registerForm, email: event.target.value })} />
+            </label>
+            <label className="field-label">
+              Password
+              <input className="field-input" type="password" value={registerForm.password} onChange={(event) => setRegisterForm({ ...registerForm, password: event.target.value })} />
+            </label>
+            <button className="btn btn-primary" onClick={handleRegister} disabled={loading}>
+              {loading ? "Creating account..." : "Create Account"}
+            </button>
+          </div>
+        )}
+
+        {error ? <div className="inline-alert error">{error}</div> : null}
+        {message ? <div className="inline-alert">{message}</div> : null}
+        <p className="subtle">Demo login: `admin@devops.local` / `admin123`</p>
       </div>
     </div>
   );
@@ -216,8 +260,8 @@ function ProgressBar({ label, current, target, suffix = "%" }) {
 function NotificationBell({ items, open, onToggle }) {
   return (
     <div className="notification-wrap">
-      <button className="btn btn-secondary bell-btn" onClick={onToggle}>
-        <span>Bell</span>
+      <button className="btn btn-secondary bell-btn" onClick={onToggle} aria-label="Open notifications">
+        <NotificationIcon />
         <span className="notification-count">{items.length}</span>
       </button>
       {open ? (
@@ -291,44 +335,24 @@ function GoalCard({ goals, overview, onSave }) {
       <div className="form-grid compact-grid">
         <label className="field-label">
           Attendance goal
-          <input
-            className="field-input"
-            type="number"
-            min="60"
-            max="100"
-            value={attendanceTarget}
-            onChange={(event) => setAttendanceTarget(event.target.value)}
-          />
+          <input className="field-input" type="number" min="60" max="100" value={attendanceTarget} onChange={(event) => setAttendanceTarget(event.target.value)} />
         </label>
         <label className="field-label">
           Assessment goal
-          <input
-            className="field-input"
-            type="number"
-            min="35"
-            max="100"
-            value={marksTarget}
-            onChange={(event) => setMarksTarget(event.target.value)}
-          />
+          <input className="field-input" type="number" min="35" max="100" value={marksTarget} onChange={(event) => setMarksTarget(event.target.value)} />
         </label>
       </div>
       <div className="goal-stack">
         <ProgressBar label="Attendance" current={overview.attendancePercentage} target={goals.attendanceTarget} />
         <ProgressBar label="Predicted assessment" current={overview.predictedMarks} target={goals.marksTarget} />
       </div>
-      <button
-        className="btn btn-primary"
-        onClick={() => onSave({ attendanceTarget, marksTarget })}
-      >
-        Save Goals
-      </button>
+      <button className="btn btn-primary" onClick={() => onSave({ attendanceTarget, marksTarget })}>Save Goals</button>
     </div>
   );
 }
 
-function TrendCharts({ trends }) {
+function AttendanceChart({ trends }) {
   const attendanceRef = useRef(null);
-  const marksRef = useRef(null);
 
   const sharedOptions = useMemo(() => ({
     responsive: true,
@@ -360,91 +384,21 @@ function TrendCharts({ trends }) {
     ]
   }), [trends]);
 
-  const marksData = useMemo(() => ({
-    labels: trends.monthlyMarks.map((item) => item.label),
-    datasets: [
-      {
-        label: "Assessment",
-        data: trends.monthlyMarks.map((item) => item.marks),
-        backgroundColor: ["#2563eb", "#14b8a6", "#f59e0b", "#ef4444"]
-      }
-    ]
-  }), [trends]);
-
   useChart(attendanceRef, "line", attendanceData, sharedOptions);
-  useChart(marksRef, "bar", marksData, sharedOptions);
 
   return (
-    <div className="chart-grid">
-      <div className="chart-card glass">
-        <div className="section-header compact">
-          <h2 className="section-title">Weekly attendance trend</h2>
-          <span className="subtle">Rolling session consistency</span>
-        </div>
-        <div className="chart-box"><canvas ref={attendanceRef} /></div>
-      </div>
-      <div className="chart-card glass">
-        <div className="section-header compact">
-          <h2 className="section-title">Monthly assessment trend</h2>
-          <span className="subtle">Performance movement over time</span>
-        </div>
-        <div className="chart-box"><canvas ref={marksRef} /></div>
-      </div>
-    </div>
-  );
-}
-
-function SubjectAnalytics({ subjects, analytics }) {
-  return (
-    <div className="section-card glass">
+    <div className="chart-card glass">
       <div className="section-header compact">
-        <div>
-          <span className="mini-chip">Performance Analytics</span>
-          <h2 className="section-title">Module-wise breakdown</h2>
-        </div>
+        <h2 className="section-title">Weekly attendance trend</h2>
+        <span className="subtle">Rolling session consistency</span>
       </div>
-      <div className="subject-grid">
-        {subjects.map((subject) => {
-          const attendancePct = Math.round((subject.attendance.attended / subject.attendance.total) * 100);
-          return (
-            <div key={subject.id} className="subject-card">
-              <div className="subject-head">
-                <div>
-                  <strong>{subject.name}</strong>
-                  <div className="subtle">Mentor: {subject.faculty}</div>
-                </div>
-                <span className={`status-pill ${attendancePct < 75 ? "danger" : "good"}`}>{attendancePct}%</span>
-              </div>
-              <div className="subject-metrics">
-                <span>Mid: {subject.marks.mid}%</span>
-                <span>Lab: {subject.marks.internal}%</span>
-                <span>Tasks: {subject.marks.assignmentAverage}%</span>
-                <span>Batch avg: {subject.marks.classAverage}%</span>
-              </div>
-              <p className="subtle">{subject.feedback}</p>
-            </div>
-          );
-        })}
-      </div>
-      <div className="compare-grid">
-        <div>
-          <strong>Strengths</strong>
-          {analytics.subjectInsights.strengths.map((item) => <p key={item.subjectId} className="subtle">{item.name}: {item.reason}</p>)}
-        </div>
-        <div>
-          <strong>Focus areas</strong>
-          {analytics.subjectInsights.weaknesses.map((item) => <p key={item.subjectId} className="subtle">{item.name}: {item.reason}</p>)}
-        </div>
-      </div>
+      <div className="chart-box"><canvas ref={attendanceRef} /></div>
     </div>
   );
 }
 
 function AssignmentBoard({ assignments, subjects, onUpload }) {
-  const subjectMap = useMemo(
-    () => Object.fromEntries(subjects.map((subject) => [subject.id, subject.name])),
-    [subjects]
-  );
+  const subjectMap = useMemo(() => Object.fromEntries(subjects.map((subject) => [subject.id, subject.name])), [subjects]);
 
   return (
     <div className="section-card glass">
@@ -455,16 +409,14 @@ function AssignmentBoard({ assignments, subjects, onUpload }) {
         </div>
       </div>
       <div className="assignment-list">
-        {assignments.map((assignment) => (
+        {assignments.length ? assignments.map((assignment) => (
           <div key={assignment.id} className="assignment-card">
             <div className="assignment-top">
               <div>
                 <strong>{assignment.title}</strong>
-                <div className="subtle">{subjectMap[assignment.subjectId]}</div>
+                <div className="subtle">{subjectMap[assignment.subjectId] || "DevOps Task"}</div>
               </div>
-              <span className={`status-pill ${assignment.status === "submitted" ? "good" : "warn"}`}>
-                {assignment.status}
-              </span>
+              <span className={`status-pill ${assignment.status === "submitted" ? "good" : "warn"}`}>{assignment.status}</span>
             </div>
             <div className="assignment-meta">
               <span>Due {formatDateTime(assignment.dueDate)}</span>
@@ -473,16 +425,9 @@ function AssignmentBoard({ assignments, subjects, onUpload }) {
             </div>
             <p className="subtle">Reviewer: {assignment.instructorComment}</p>
             <p className="subtle">Feedback: {assignment.feedback}</p>
-            {assignment.status === "pending" ? (
-              <button
-                className="btn btn-secondary"
-                onClick={() => onUpload(assignment.id, assignment.title)}
-              >
-                Upload Submission
-              </button>
-            ) : null}
+            {assignment.status === "pending" ? <button className="btn btn-secondary" onClick={() => onUpload(assignment.id, assignment.title)}>Upload Submission</button> : null}
           </div>
-        ))}
+        )) : <p className="empty-state">No tasks available yet for this learner.</p>}
       </div>
     </div>
   );
@@ -490,9 +435,7 @@ function AssignmentBoard({ assignments, subjects, onUpload }) {
 
 function CalendarPanel({ events }) {
   const days = useMemo(() => getCalendarMatrix(events), [events]);
-  const monthTitle = events[0]?.date
-    ? new Date(events[0].date).toLocaleDateString("en-IN", { month: "long", year: "numeric" })
-    : "Calendar";
+  const monthTitle = events[0]?.date ? new Date(events[0].date).toLocaleDateString("en-IN", { month: "long", year: "numeric" }) : "Current Schedule";
 
   return (
     <div className="section-card glass">
@@ -501,7 +444,6 @@ function CalendarPanel({ events }) {
           <span className="mini-chip">Schedule</span>
           <h2 className="section-title">{monthTitle}</h2>
         </div>
-        <div className="subtle">Google Calendar sync: design ready</div>
       </div>
       <div className="weekday-row">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="weekday">{day}</div>)}
@@ -510,11 +452,7 @@ function CalendarPanel({ events }) {
         {days.map((day) => (
           <div key={day.iso} className={`calendar-day ${day.currentMonth ? "" : "other-month"}`}>
             <div className="day-number">{day.day}</div>
-            {day.events.map((event) => (
-              <div key={event.id} className={`event-pill ${event.type}`}>
-                {event.title}
-              </div>
-            ))}
+            {day.events.map((event) => <div key={event.id} className={`event-pill ${event.type}`}>{event.title}</div>)}
           </div>
         ))}
       </div>
@@ -522,68 +460,22 @@ function CalendarPanel({ events }) {
   );
 }
 
-function FeedbackCard({ suggestions, onSubmit }) {
-  const [message, setMessage] = useState("");
-
+function NotesCard({ notes }) {
   return (
     <div className="section-card glass">
       <div className="section-header compact">
         <div>
-          <span className="mini-chip">Feedback</span>
-          <h2 className="section-title">Suggestion box</h2>
+          <span className="mini-chip">Notes</span>
+          <h2 className="section-title">Important notes</h2>
         </div>
       </div>
-      <textarea
-        className="field-input textarea"
-        rows="4"
-        placeholder="Share a suggestion for the bootcamp or tracker..."
-        value={message}
-        onChange={(event) => setMessage(event.target.value)}
-      />
-      <button
-        className="btn btn-primary"
-        onClick={() => {
-          if (!message.trim()) {
-            return;
-          }
-          onSubmit(message);
-          setMessage("");
-        }}
-      >
-        Send Suggestion
-      </button>
       <div className="feedback-list">
-        {suggestions.map((item) => (
+        {notes.length ? notes.map((item) => (
           <div key={item.id} className="feedback-item">
             <strong>{formatDateTime(item.createdAt)}</strong>
             <p>{item.message}</p>
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function GamificationCard({ analytics }) {
-  return (
-    <div className="section-card glass">
-      <div className="section-header compact">
-        <div>
-          <span className="mini-chip">Gamification</span>
-          <h2 className="section-title">Badges and streaks</h2>
-        </div>
-      </div>
-      <div className="badge-grid">
-        {analytics.badges.map((badge) => (
-          <div key={badge.id} className="badge-card">
-            <strong>{badge.label}</strong>
-            <p>{badge.detail}</p>
-          </div>
-        ))}
-      </div>
-      <div className="streak-card">
-        <span className="metric-label">Current attendance streak</span>
-        <strong>{analytics.streak} days</strong>
+        )) : <p className="empty-state">No important notes available yet.</p>}
       </div>
     </div>
   );
@@ -609,9 +501,7 @@ function AssistantCard({ onAsk, answerState }) {
         </div>
         <div className="prompt-row">
           {answerState.suggestedPrompts?.map((prompt) => (
-            <button key={prompt} className="btn btn-secondary prompt-btn" onClick={() => { setQuestion(prompt); onAsk(prompt); }}>
-              {prompt}
-            </button>
+            <button key={prompt} className="btn btn-secondary prompt-btn" onClick={() => { setQuestion(prompt); onAsk(prompt); }}>{prompt}</button>
           ))}
         </div>
       </div>
@@ -619,7 +509,7 @@ function AssistantCard({ onAsk, answerState }) {
   );
 }
 
-function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onFeedbackSubmit, onAssignmentUpload, onAskAssistant, assistantState }) {
+function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onAssignmentUpload, onAskAssistant, assistantState }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   return (
@@ -628,18 +518,13 @@ function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onFeedbac
         <div className="brand-block">
           <div className="brand-line">
             <span className="brand-tag">DevOps Attendance Tracker</span>
-            <span className="version-chip">Responsive | Predictive | Minimal</span>
           </div>
           <h1 className="page-title">Welcome back, {dashboard.profile.name.split(" ")[0]}</h1>
-          <p className="subtle">
-            {dashboard.profile.track} | {dashboard.profile.cohort} | Mentor {dashboard.profile.mentor}
-          </p>
+          <p className="subtle">Fundamentals of DevOps</p>
         </div>
         <div className="toolbar-actions">
           <NotificationBell items={dashboard.notifications} open={notificationsOpen} onToggle={() => setNotificationsOpen((value) => !value)} />
-          <button className="btn btn-secondary" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-            {theme === "dark" ? "Light Mode" : "Dark Mode"}
-          </button>
+          <button className="btn btn-secondary" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? "Light Mode" : "Dark Mode"}</button>
           <button className="btn btn-secondary" onClick={onLogout}>Logout</button>
         </div>
       </div>
@@ -647,13 +532,11 @@ function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onFeedbac
       <div className="hero glass">
         <div className="hero-copy">
           <span className="mini-chip">Today at a glance</span>
-          <h2 className="section-title">Stay ahead with alerts, predictions, goals, and delivery guidance.</h2>
-          <p className="subtle">
-            This tracker combines attendance health, DevOps task progress, assessment forecasts, schedule planning, and mentor signals in one clean workspace.
-          </p>
+          <h2 className="section-title">Stay ahead with alerts, predictions, attendance goals, and task tracking.</h2>
+          <p className="subtle">This tracker combines attendance health, DevOps task progress, assessment forecasts, schedule planning, and important notes in one clean workspace.</p>
           <div className="quick-actions">
             <button className="btn btn-primary">View training plan</button>
-            <button className="btn btn-secondary">Sync calendar design</button>
+            <button className="btn btn-secondary">Check upcoming tasks</button>
           </div>
         </div>
         <InsightPanel predictions={dashboard.predictions} attendance={dashboard.attendance} marks={dashboard.marks} />
@@ -668,14 +551,12 @@ function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onFeedbac
       <div className="page-grid">
         <div className="stack-grid">
           <GoalCard goals={dashboard.goals} overview={dashboard.overview} onSave={onGoalSave} />
-          <SubjectAnalytics subjects={dashboard.subjects} analytics={dashboard.analytics} />
           <AssignmentBoard assignments={dashboard.assignments} subjects={dashboard.subjects} onUpload={onAssignmentUpload} />
-          <FeedbackCard suggestions={dashboard.suggestions} onSubmit={onFeedbackSubmit} />
+          <NotesCard notes={dashboard.suggestions} />
         </div>
         <div className="stack-grid">
-          <TrendCharts trends={dashboard.trends} />
+          <AttendanceChart trends={dashboard.trends} />
           <CalendarPanel events={dashboard.calendar} />
-          <GamificationCard analytics={dashboard.analytics} />
           <AssistantCard onAsk={onAskAssistant} answerState={assistantState} />
         </div>
       </div>
@@ -732,6 +613,19 @@ function App() {
     }
   };
 
+  const handleRegister = async (payload) => {
+    setLoading(true);
+    setError("");
+    try {
+      return await api.register(payload);
+    } catch (err) {
+      setError(err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const syncDashboardState = (nextDashboard) => {
     setDashboard(nextDashboard);
   };
@@ -741,17 +635,9 @@ function App() {
     syncDashboardState(result.dashboard);
   };
 
-  const handleFeedbackSubmit = async (message) => {
-    const result = await api.submitFeedback(message);
-    syncDashboardState(result.dashboard);
-  };
-
   const handleAssignmentUpload = async (assignmentId, title) => {
     const fileName = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`;
-    const result = await api.uploadAssignment(assignmentId, {
-      fileName,
-      fileSizeKb: Math.floor(Math.random() * 800) + 200
-    });
+    const result = await api.uploadAssignment(assignmentId, { fileName, fileSizeKb: Math.floor(Math.random() * 800) + 200 });
     syncDashboardState(result.dashboard);
   };
 
@@ -772,7 +658,7 @@ function App() {
   };
 
   if (!session?.token) {
-    return <LoginScreen onLogin={handleLogin} loading={loading} error={error} />;
+    return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} loading={loading} error={error} />;
   }
 
   if (!dashboard) {
@@ -793,7 +679,6 @@ function App() {
       setTheme={setTheme}
       onLogout={handleLogout}
       onGoalSave={handleGoalSave}
-      onFeedbackSubmit={handleFeedbackSubmit}
       onAssignmentUpload={handleAssignmentUpload}
       onAskAssistant={handleAssistantAsk}
       assistantState={assistantState}

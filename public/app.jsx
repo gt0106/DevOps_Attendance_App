@@ -56,6 +56,13 @@ const api = {
     });
   },
 
+  markAttendance(status) {
+    return this.request("/api/attendance/mark", {
+      method: "POST",
+      body: JSON.stringify({ status })
+    });
+  },
+
   uploadAssignment(id, payload) {
     return this.request(`/api/assignments/${id}/upload`, {
       method: "POST",
@@ -515,7 +522,7 @@ function AssistantCard({ onAsk, answerState }) {
   );
 }
 
-function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onAssignmentUpload, onAskAssistant, assistantState }) {
+function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onAssignmentUpload, onAskAssistant, onMarkAttendance, assistantState }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   return (
@@ -538,6 +545,8 @@ function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onAssignm
           <h2 className="section-title">Stay ahead with alerts, predictions, attendance goals, and task tracking.</h2>
           <p className="subtle">This tracker combines attendance health, DevOps task progress, assessment forecasts, schedule planning, and important notes in one clean workspace.</p>
           <div className="quick-actions">
+            <button className="btn btn-success" onClick={() => onMarkAttendance("present")}>Mark Present</button>
+            <button className="btn btn-danger" onClick={() => onMarkAttendance("absent")}>Mark Absent</button>
             <button className="btn btn-primary">View training plan</button>
             <button className="btn btn-secondary">Check upcoming tasks</button>
           </div>
@@ -649,6 +658,11 @@ function App() {
     setAssistantState(result);
   };
 
+  const handleMarkAttendance = async (status) => {
+    const result = await api.markAttendance(status);
+    syncDashboardState(result.dashboard);
+  };
+
   const handleLogout = async () => {
     try {
       await api.logout();
@@ -684,6 +698,7 @@ function App() {
       onGoalSave={handleGoalSave}
       onAssignmentUpload={handleAssignmentUpload}
       onAskAssistant={handleAssistantAsk}
+      onMarkAttendance={handleMarkAttendance}
       assistantState={assistantState}
     />
   );

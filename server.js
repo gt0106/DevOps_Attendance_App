@@ -89,67 +89,102 @@ function titleCaseFromEmail(email) {
   return base.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function createDashboardTemplate(email, enrollmentNo) {
+async function createDashboardTemplate(email, enrollmentNo) {
+  const seedCollection = await readSeedDashboardCollection();
+  const seed = clone(seedCollection[0] || {});
+
   return {
+    ...seed,
     username: createUsernameFromEmail(email),
     profile: {
+      ...(seed.profile || {}),
       name: titleCaseFromEmail(email),
       courseTitle: "Fundamentals of DevOps",
-      cohort: "Current Cohort",
+      cohort: seed.profile?.cohort || "Current Cohort",
       team: enrollmentNo,
-      mentor: "DevOps Faculty"
+      mentor: seed.profile?.mentor || "DevOps Faculty"
+    }
+  };
+}
+
+function shouldHydrateFromSeed(student) {
+  return (
+    !student.assignments?.length ||
+    !student.calendarEvents?.length ||
+    !student.subjects?.some((subject) => (subject.attendance?.total || 0) > 0)
+  );
+}
+
+async function hydrateStudentFromSeed(student) {
+  if (!shouldHydrateFromSeed(student)) {
+    return student;
+  }
+
+  const seedCollection = await readSeedDashboardCollection();
+  const seed = clone(seedCollection[0] || {});
+
+  return {
+    ...seed,
+    ...student,
+    username: student.username,
+    profile: {
+      ...(seed.profile || {}),
+      ...(student.profile || {}),
+      courseTitle: "Fundamentals of DevOps"
     },
     goals: {
-      attendanceTarget: 85,
-      marksTarget: 88
+      ...(seed.goals || {}),
+      ...(student.goals || {})
     },
-    subjects: [
-      {
-        id: "linux",
-        name: "Linux & Shell",
-        faculty: "R. Nair",
-        attendance: { attended: 0, total: 0 },
-        marks: { mid: 0, end: 0, internal: 0, assignmentAverage: 0, classAverage: 76 },
-        weeklyTrend: [0, 0, 0, 0, 0, 0],
-        monthlyTrend: [0, 0, 0, 0],
-        feedback: "Your progress notes will appear here once assessments begin."
-      },
-      {
-        id: "docker",
-        name: "Docker & Containers",
-        faculty: "S. Kapoor",
-        attendance: { attended: 0, total: 0 },
-        marks: { mid: 0, end: 0, internal: 0, assignmentAverage: 0, classAverage: 73 },
-        weeklyTrend: [0, 0, 0, 0, 0, 0],
-        monthlyTrend: [0, 0, 0, 0],
-        feedback: "Your progress notes will appear here once assessments begin."
-      },
-      {
-        id: "ci-cd",
-        name: "CI/CD Pipelines",
-        faculty: "N. Thomas",
-        attendance: { attended: 0, total: 0 },
-        marks: { mid: 0, end: 0, internal: 0, assignmentAverage: 0, classAverage: 70 },
-        weeklyTrend: [0, 0, 0, 0, 0, 0],
-        monthlyTrend: [0, 0, 0, 0],
-        feedback: "Your progress notes will appear here once assessments begin."
-      }
-    ],
-    assignments: [],
-    calendarEvents: [],
-    suggestions: [
-      {
-        id: crypto.randomUUID(),
-        message: "Attendance must stay above 75 percent for course completion eligibility.",
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: crypto.randomUUID(),
-        message: "Keep your Docker, Linux, and CI/CD lab submissions organized for review.",
-        createdAt: new Date().toISOString()
-      }
-    ],
-    attendanceLog: []
+    subjects: student.subjects?.some((subject) => (subject.attendance?.total || 0) > 0)
+      ? student.subjects
+      : seed.subjects,
+    assignments: student.assignments?.length ? student.assignments : seed.assignments,
+    calendarEvents: student.calendarEvents?.length ? student.calendarEvents : seed.calendarEvents,
+    suggestions: student.suggestions?.length ? student.suggestions : seed.suggestions,
+    attendanceLog: student.attendanceLog || seed.attendanceLog || []
+  };
+}
+
+function calculateAttendance(attendanceLog, subjects) {
+  if (attendanceLog?.length) {
+    const attended = attendanceLog.filter((entry) => entry.status === "present").length;
+    const total = attendanceLog.length;
+    const percentage = total ? round((attended / total) * 100) : 0;
+    const requiredToReach75 = total * 0.75 <= attended
+      ? 0
+      : Math.ceil((0.75 * total - attended) / 0.25);
+    const safeToMiss = Math.max(0, Math.floor(attended / 0.75 - total));
+
+    return {
+      attended,
+      total,
+      percentage,
+      safeToMiss,
+      requiredToReach75
+    };
+  }
+
+  const totals = subjects.reduce(
+    (acc, subject) => {
+      acc.attended += subject.attendance.attended;
+      acc.total += subject.attendance.total;
+      return acc;
+    },
+    { attended: 0, total: 0 }
+  );
+
+  const percentage = totals.total ? round((totals.attended / totals.total) * 100) : 0;
+  const requiredToReach75 = totals.total * 0.75 <= totals.attended
+    ? 0
+    : Math.ceil((0.75 * totals.total - totals.attended) / 0.25);
+  const safeToMiss = Math.max(0, Math.floor(totals.attended / 0.75 - totals.total));
+
+  return {
+    ...totals,
+    percentage,
+    safeToMiss,
+    requiredToReach75
   };
 }
 
@@ -318,30 +353,6 @@ function clamp(number, min, max) {
 
 function round(number) {
   return Math.round(number * 10) / 10;
-}
-
-function calculateAttendance(subjects) {
-  const totals = subjects.reduce(
-    (acc, subject) => {
-      acc.attended += subject.attendance.attended;
-      acc.total += subject.attendance.total;
-      return acc;
-    },
-    { attended: 0, total: 0 }
-  );
-
-  const percentage = totals.total ? round((totals.attended / totals.total) * 100) : 0;
-  const requiredToReach75 = totals.total * 0.75 <= totals.attended
-    ? 0
-    : Math.ceil((0.75 * totals.total - totals.attended) / 0.25);
-  const safeToMiss = Math.max(0, Math.floor(totals.attended / 0.75 - totals.total));
-
-  return {
-    ...totals,
-    percentage,
-    safeToMiss,
-    requiredToReach75
-  };
 }
 
 function calculateMarks(subjects) {
@@ -530,7 +541,7 @@ function buildAssistantHints(attendance, marks) {
 }
 
 function buildDashboardPayload(student) {
-  const attendance = calculateAttendance(student.subjects);
+  const attendance = calculateAttendance(student.attendanceLog, student.subjects);
   const marks = calculateMarks(student.subjects);
   const trends = buildTrendSeries(student.attendanceLog, student.subjects);
   const subjectInsights = buildStrengths(student.subjects);
@@ -652,10 +663,8 @@ app.post("/api/register", async (req, res) => {
     name: titleCaseFromEmail(normalizedEmail),
     role: "DevOps Learner"
   };
-  const dashboardRecord = {
-    ...createDashboardTemplate(normalizedEmail, normalizedEnrollment),
-    username
-  };
+  const dashboardRecord = await createDashboardTemplate(normalizedEmail, normalizedEnrollment);
+  dashboardRecord.username = username;
 
   await storage.createUser(newUser, dashboardRecord);
 
@@ -688,13 +697,52 @@ app.get("/api/health", async (req, res) => {
 });
 
 app.get("/api/dashboard", requireAuth, async (req, res) => {
-  const student = await storage.getStudentRecord(req.session.username);
+  const rawStudent = await storage.getStudentRecord(req.session.username);
+  const student = rawStudent ? await hydrateStudentFromSeed(rawStudent) : null;
 
   if (!student) {
     return res.status(404).json({ message: "DevOps tracker data not found" });
   }
 
   res.json(buildDashboardPayload(student));
+});
+
+app.post("/api/attendance/mark", requireAuth, async (req, res) => {
+  const { status } = req.body || {};
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+
+  if (!["present", "absent"].includes(normalizedStatus)) {
+    return res.status(400).json({ message: "Status must be present or absent" });
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  let updated;
+
+  try {
+    updated = await storage.updateStudentRecord(req.session.username, (student) => {
+      const record = clone(student);
+      record.attendanceLog = record.attendanceLog || [];
+
+      if (record.attendanceLog.some((entry) => entry.date === today)) {
+        throw new Error("Attendance already marked for today");
+      }
+
+      record.attendanceLog.push({
+        date: today,
+        status: normalizedStatus
+      });
+
+      return record;
+    });
+  } catch (error) {
+    return res.status(409).json({ message: error.message });
+  }
+
+  res.status(201).json({
+    message: `Marked ${normalizedStatus} successfully`,
+    dashboard: buildDashboardPayload(await hydrateStudentFromSeed(updated))
+  });
 });
 
 app.put("/api/goals", requireAuth, async (req, res) => {

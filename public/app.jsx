@@ -261,7 +261,13 @@ function NotificationBell({ items, open, onToggle }) {
   return (
     <div className="notification-wrap">
       <button className="btn btn-secondary bell-btn" onClick={onToggle} aria-label="Open notifications">
-        <NotificationIcon />
+        <span className="bell-icon-shell">
+          <NotificationIcon />
+        </span>
+        <span className="bell-copy">
+          <strong>Alerts</strong>
+          <small>{items.length ? `${items.length} new updates` : "All clear"}</small>
+        </span>
         <span className="notification-count">{items.length}</span>
       </button>
       {open ? (
@@ -516,16 +522,13 @@ function Dashboard({ dashboard, theme, setTheme, onLogout, onGoalSave, onAssignm
     <div className="app-shell">
       <div className="topbar glass">
         <div className="brand-block">
-          <div className="brand-line">
-            <span className="brand-tag">DevOps Attendance Tracker</span>
-          </div>
-          <h1 className="page-title">Welcome back, {dashboard.profile.name.split(" ")[0]}</h1>
+          <h1 className="page-title">Welcome back</h1>
           <p className="subtle">Fundamentals of DevOps</p>
         </div>
         <div className="toolbar-actions">
           <NotificationBell items={dashboard.notifications} open={notificationsOpen} onToggle={() => setNotificationsOpen((value) => !value)} />
           <button className="btn btn-secondary" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? "Light Mode" : "Dark Mode"}</button>
-          <button className="btn btn-secondary" onClick={onLogout}>Logout</button>
+          <button className="btn btn-danger" onClick={onLogout}>Logout</button>
         </div>
       </div>
 

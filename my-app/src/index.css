@@ -1,0 +1,23 @@
+body { margin:0; font-family:sans-serif; }
+
+.container { padding:20px; }
+.topbar { background:#7e22ce; color:white; padding:10px; display:flex; justify-content:space-between; }
+
+.card { background:white; padding:15px; border-radius:10px; margin:10px 0; }
+
+.glass { box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+
+.profile { display:flex; gap:10px; align-items:center; }
+
+.progress { height:10px; background:#ddd; }
+.bar { height:100%; background:orange; }
+
+.row { display:flex; justify-content:space-between; }
+
+.present { color:green; }
+.absent { color:red; }
+
+.toast { position:fixed; bottom:10px; right:10px; }
+
+.dark { background:#0f172a; color:white; }
+.dark .card { background:#1e293b; }

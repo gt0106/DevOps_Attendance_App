@@ -2,7 +2,7 @@
   {
     "username": "admin",
     "email": "admin@devops.local",
-    "password": "admin123",
+    "password": "scrypt$e335d51b6df3a591122da05fad714fbb$bd8a11261bc17848ab7c1386678af419a07e4efbaed63d039445fb22388a760f4bca817523d2cb3da5647278862c8fd66d168aeae1cb68333c13fe8449c9ddd3",
     "enrollmentNo": "DEVOPS-0001",
     "name": "DevOps Admin",
     "role": "Platform Engineer"
@@ -10,7 +10,7 @@
   {
     "username": "engineer",
     "email": "engineer@devops.local",
-    "password": "devops123",
+    "password": "scrypt$346c51574571f49afa929d3c8dd472a1$ba5c5069380ba27180793c83ab01c8633c6ebd7f28380d565b02247d04a9f26c0898cae7060648ecaa44b5a7046162598f71c13bf63e9e2883670a64ba1e2beb",
     "enrollmentNo": "DEVOPS-0002",
     "name": "Site Reliability Engineer",
     "role": "SRE"
@@ -18,7 +18,7 @@
   {
     "username": "learner5",
     "email": "learner5@example.com",
-    "password": "pass123",
+    "password": "scrypt$a10a7c502d3ed03ad6fcc7e48e36def1$1d8b004b54c4076ed3f85555b5b9c722c863e1bf53452e30f244370dc23e56323489c3d44ec968acb68b9ab441d68e9a10465e663bf6364207bffc247ef53907",
     "enrollmentNo": "DEVOPS-5050",
     "name": "Learner5",
     "role": "DevOps Learner"

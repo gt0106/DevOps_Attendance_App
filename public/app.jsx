@@ -604,9 +604,11 @@ function App() {
     }
 
     loadDashboard().catch((err) => {
-      setError(err.message);
       clearSession();
       setSession(null);
+      if (!/unauthorized|session expired/i.test(err.message || "")) {
+        setError(err.message);
+      }
     });
   }, [session]);
 

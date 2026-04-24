@@ -16,8 +16,12 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const DASHBOARD_FILE = path.join(DATA_DIR, "student-dashboard.json");
 const MONGODB_URI = process.env.MONGODB_URI || "";
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "student_dashboard";
+const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
+const LOGIN_WINDOW_MS = 1000 * 60 * 10;
+const LOGIN_MAX_ATTEMPTS = 5;
 
 const sessions = new Map();
+const authAttempts = new Map();
 let mongoClient = null;
 let mongoDb = null;
 
@@ -28,6 +32,65 @@ app.use(express.static(path.join(__dirname, "public")));
 
 function createToken() {
   return crypto.randomBytes(24).toString("hex");
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derived = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `scrypt$${salt}$${derived}`;
+}
+
+function isHashedPassword(value) {
+  return typeof value === "string" && value.startsWith("scrypt$");
+}
+
+function verifyPassword(password, storedPassword) {
+  if (!storedPassword) {
+    return false;
+  }
+
+  if (!isHashedPassword(storedPassword)) {
+    return password === storedPassword;
+  }
+
+  const [, salt, derived] = storedPassword.split("$");
+  const candidate = crypto.scryptSync(password, salt, 64);
+  const expected = Buffer.from(derived, "hex");
+
+  return expected.length === candidate.length && crypto.timingSafeEqual(expected, candidate);
+}
+
+function getClientKey(req, email = "") {
+  return `${req.ip || "unknown"}:${normalizeEmail(email)}`;
+}
+
+function registerFailedAttempt(key) {
+  const now = Date.now();
+  const current = authAttempts.get(key) || { count: 0, firstAttemptAt: now };
+  const reset = now - current.firstAttemptAt > LOGIN_WINDOW_MS;
+  const nextValue = reset
+    ? { count: 1, firstAttemptAt: now }
+    : { count: current.count + 1, firstAttemptAt: current.firstAttemptAt };
+
+  authAttempts.set(key, nextValue);
+}
+
+function clearFailedAttempts(key) {
+  authAttempts.delete(key);
+}
+
+function isRateLimited(key) {
+  const current = authAttempts.get(key);
+  if (!current) {
+    return false;
+  }
+
+  if (Date.now() - current.firstAttemptAt > LOGIN_WINDOW_MS) {
+    authAttempts.delete(key);
+    return false;
+  }
+
+  return current.count >= LOGIN_MAX_ATTEMPTS;
 }
 
 async function readJson(filePath, fallback) {
@@ -194,6 +257,7 @@ const storage = {
   async init() {
     if (!MONGODB_URI) {
       this.mode = "json";
+      await this.hardenStoredUsers();
       return;
     }
 
@@ -202,6 +266,7 @@ const storage = {
     mongoDb = mongoClient.db(MONGODB_DB_NAME);
     this.mode = "mongodb";
     await this.seedMongoIfEmpty();
+    await this.hardenStoredUsers();
   },
 
   async seedMongoIfEmpty() {
@@ -234,6 +299,22 @@ const storage = {
     }
 
     return readSeedUsers();
+  },
+
+  async hardenStoredUsers() {
+    const users = await this.loadUsers();
+    const needsUpgrade = users.some((user) => !isHashedPassword(user.password));
+
+    if (!needsUpgrade) {
+      return;
+    }
+
+    const hardenedUsers = users.map((user) => ({
+      ...user,
+      password: isHashedPassword(user.password) ? user.password : hashPassword(user.password)
+    }));
+
+    await this.saveUsersCollection(hardenedUsers);
   },
 
   async saveUsersCollection(records) {
@@ -333,6 +414,11 @@ function requireAuth(req, res, next) {
 
   if (!session) {
     return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (new Date(session.expiresAt).getTime() <= Date.now()) {
+    sessions.delete(token);
+    return res.status(401).json({ message: "Session expired. Please sign in again." });
   }
 
   req.session = session;
@@ -607,14 +693,23 @@ function buildDashboardPayload(student) {
 
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
+  const clientKey = getClientKey(req, email);
+
+  if (isRateLimited(clientKey)) {
+    return res.status(429).json({ message: "Too many login attempts. Please try again later." });
+  }
+
   const users = await storage.loadUsers();
   const user = users.find(
-    (entry) => normalizeEmail(entry.email) === normalizeEmail(email) && entry.password === password
+    (entry) => normalizeEmail(entry.email) === normalizeEmail(email)
   );
 
-  if (!user) {
+  if (!user || !verifyPassword(password, user.password)) {
+    registerFailedAttempt(clientKey);
     return res.status(401).json({ message: "Invalid email or password" });
   }
+
+  clearFailedAttempts(clientKey);
 
   const token = createToken();
   const session = {
@@ -623,7 +718,8 @@ app.post("/api/login", async (req, res) => {
     name: user.name,
     role: user.role,
     enrollmentNo: user.enrollmentNo,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString()
   };
 
   sessions.set(token, session);
@@ -643,6 +739,14 @@ app.post("/api/register", async (req, res) => {
     return res.status(400).json({ message: "Email, password, and enrollment number are required" });
   }
 
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ message: "Please enter a valid email address" });
+  }
+
+  if (String(password).length < 8) {
+    return res.status(400).json({ message: "Password must be at least 8 characters long" });
+  }
+
   const users = await storage.loadUsers();
   const duplicate = users.find(
     (entry) =>
@@ -658,7 +762,7 @@ app.post("/api/register", async (req, res) => {
   const newUser = {
     username,
     email: normalizedEmail,
-    password,
+    password: hashPassword(password),
     enrollmentNo: normalizedEnrollment,
     name: titleCaseFromEmail(normalizedEmail),
     role: "DevOps Learner"
